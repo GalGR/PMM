@@ -1,0 +1,3 @@
+#!/bin/bash
+
+env LIBRARY_PATH=/usr/local/MATLAB/R2020a/bin/glnxa64 g++ -I/usr/local/MATLAB/R2020a/extern/include -Isrc/MatlabUtils -L/usr/local/MATLAB/R2020a/bin/glnxa64 -o main src/main.cpp /usr/local/MATLAB/R2020a/bin/glnxa64/libmwboost_regex.so.1.70.0 /usr/local/MATLAB/R2020a/bin/glnxa64/libmwboost_atomic.so.1.70.0 /usr/local/MATLAB/R2020a/bin/glnxa64/libmwboost_chrono.so.1.70.0 /usr/local/MATLAB/R2020a/bin/glnxa64/libicudata.so.64 -L/usr/local/MATLAB/R2020a/bin/glnxa64 -lmat -lmex -leng -lmx
