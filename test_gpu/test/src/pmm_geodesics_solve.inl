@@ -69,16 +69,16 @@ __global__ void solve_upwards(Scalar *D, cudaTextureObject_t V, Scalar *C, unsig
             Scalar3 x_r = { v_x_r - v_x_0, v_y_r - v_y_0, v_z_r - v_z_0 };
             if (x < width && y < height) {
                 if (x > 0) { // Left triangle
-                    Scalar a  = *(Scalar *)(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH * 2 - PMM_COEFF_PITCH + (y + i) * C_pitch]);
-                    Scalar2 b = *(Scalar2*)(&C[(PMM_B_OFF + 0) + x * PMM_COEFF_PITCH * 2 - PMM_COEFF_PITCH + (y + i) * C_pitch]);
-                    Scalar4 c = *(Scalar4*)(&C[(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH * 2 - PMM_COEFF_PITCH + (y + i) * C_pitch]);
+                    Scalar a  = *reinterpret_cast<Scalar *>(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH * 2 - PMM_COEFF_PITCH + (y + i) * C_pitch]);
+                    Scalar2 b = *reinterpret_cast<Scalar2*>(&C[(PMM_B_OFF + 0) + x * PMM_COEFF_PITCH * 2 - PMM_COEFF_PITCH + (y + i) * C_pitch]);
+                    Scalar4 c = *reinterpret_cast<Scalar4*>(&C[(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH * 2 - PMM_COEFF_PITCH + (y + i) * C_pitch]);
                     Scalar d_new = solve(x_l, x_m, d_l, d_m, a, b, c);
                     d[idx_d_0] = min(d_new, d[idx_d_0]);
                 }
                 if (x < width - 1) { // Right triangle
-                    Scalar a  = *(Scalar *)(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH * 2 + (y + i) * C_pitch]);
-                    Scalar2 b = *(Scalar2*)(&C[(PMM_B_OFF + 0) + x * PMM_COEFF_PITCH * 2 + (y + i) * C_pitch]);
-                    Scalar4 c = *(Scalar4*)(&C[(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH * 2 + (y + i) * C_pitch]);
+                    Scalar a  = *reinterpret_cast<Scalar *>(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH * 2 + (y + i) * C_pitch]);
+                    Scalar2 b = *reinterpret_cast<Scalar2*>(&C[(PMM_B_OFF + 0) + x * PMM_COEFF_PITCH * 2 + (y + i) * C_pitch]);
+                    Scalar4 c = *reinterpret_cast<Scalar4*>(&C[(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH * 2 + (y + i) * C_pitch]);
                     Scalar d_new = solve(x_m, x_r, d_m, d_r, a, b, c);
                     d[idx_d_0] = min(d_new, d[idx_d_0]);
                 }

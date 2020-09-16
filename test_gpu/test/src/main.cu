@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
         std::cout << "\t" "Warp size:" "\t\t\t" << prop.warpSize << std::endl;
         std::cout << "\t" "Total global memory:" "\t\t" << (prop.totalGlobalMem / (double)(1<<20)) << " MiB" << std::endl;
         std::cout << "\t" "Total const memory:" "\t\t" << (prop.totalConstMem / (double)(1<<20)) << " MiB" << std::endl;
-        std::cout << "\t" "Shared memory per block:" "\t" << (prop.sharedMemPerBlock / (double)(1<<20)) << "MiB" << std::endl;
+        std::cout << "\t" "Shared memory per block:" "\t" << (prop.sharedMemPerBlock / (double)(1<<20)) << " MiB" << std::endl;
         std::cout << "\t" "Registers per block (4 bytes):" "\t" << prop.regsPerBlock << std::endl;
         std::cout << "\t" "Max threads per block:" "\t\t" << prop.maxThreadsPerBlock << std::endl;
         std::cout << "\t" "Max block dimensions:" "\t\t";
@@ -300,11 +300,11 @@ int main(int argc, char *argv[])
           std::cout << "[" << i << "] " << arr[i] << std::endl;
         }
         std::cout << "\t" "Memory copy pitch size:" "\t\t" << prop.memPitch << " bytes" << std::endl;
-        std::cout << "\t" "Concurrent copy and execute:" "\t" << prop.deviceOverlap << "(" << (prop.deviceOverlap) ? ("True") : ("False") << ")" << std::endl;
-        std::cout << "\t" "Device can map host memory:" "\t" << prop.canMapHostMemory << "(" << (prop.canMapHostMemory) ? ("True") : ("False") << ")" << std::endl;
-        std::cout << "\t" "Device is integrated:" "\t\t" << prop.integrated << "(" << (prop.integrated) ? ("Integrated") : ("Discrete/Dedicated") << ")" << std::endl;
-        std::cout << "\t" "Kernel timeout enabled:" "\t\t" << prop.kernelExecTimeoutEnabled << "(" << (prop.kernelExecTimeoutEnabled) ? ("True") : ("False") << ")" << std::endl;
-        std::cout << "\t" "Device compute mode:" "\t\t" << prop.computeMode << "(";
+        std::cout << "\t" "Concurrent copy and execute:" "\t" << prop.deviceOverlap << " (" << ((prop.deviceOverlap) ? (std::string("True")) : (std::string("False"))) << ")" << std::endl;
+        std::cout << "\t" "Device can map host memory:" "\t" << prop.canMapHostMemory << " (" << ((prop.canMapHostMemory) ? (std::string("True")) : (std::string("False"))) << ")" << std::endl;
+        std::cout << "\t" "Device is integrated:" "\t\t" << prop.integrated << " (" << ((prop.integrated) ? (std::string("Integrated")) : (std::string("Discrete/Dedicated"))) << ")" << std::endl;
+        std::cout << "\t" "Kernel timeout enabled:" "\t\t" << prop.kernelExecTimeoutEnabled << " (" << ((prop.kernelExecTimeoutEnabled) ? (std::string("True")) : (std::string("False"))) << ")" << std::endl;
+        std::cout << "\t" "Device compute mode:" "\t\t" << prop.computeMode << " (";
         {
           switch (prop.computeMode) {
           case cudaComputeMode::cudaComputeModeDefault:
