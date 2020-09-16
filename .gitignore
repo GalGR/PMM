@@ -6,6 +6,9 @@ build/*
 **/Release
 **/Debug
 
+# Matrix bin
+**/*.bin
+
 # Junk
 old
 
