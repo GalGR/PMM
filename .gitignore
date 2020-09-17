@@ -17,6 +17,8 @@ old
 *.lo
 *.o
 *.obj
+# But don't ignore the data .obj model files
+!data/*.obj
 
 # Precompiled Headers
 *.gch
