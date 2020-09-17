@@ -53,8 +53,8 @@ private:
     inline static void s_meas_(plf::nanotimer &timer, size_t &stack, const String_T &msg) {
         timer.start();
         s_indent_(std::cout, stack);
-        std::cout << MSG << "..." << std::endl;
-        ++stack_;
+        std::cout << msg << "..." << std::endl;
+        ++stack;
     }
 public:
 

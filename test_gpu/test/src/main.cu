@@ -14,8 +14,9 @@
 
 #include <cuda_runtime.h>
 #include "utils_cuda.h"
+#include "scalar_types.h"
 
-#include "pmm.h"
+#include "pmm.cuh"
 
 #include "data_shared_path.h"
 
@@ -24,6 +25,7 @@
 #include <limits>
 #include <cmath>
 #include <array>
+#include <type_traits>
 #include "mesh_processing.h"
 #include "plf_nanotimer/plf_nanotimer.h"
 #include <boost/program_options.hpp>
@@ -42,7 +44,7 @@ namespace po = boost::program_options;
   std::string matrix_filename;
 #endif
 
-#ifdef PRINT_DEVICE_INFO
+#ifdef DEVICE_INFO
   bool print_device_info = true;
 #endif
 
@@ -75,28 +77,33 @@ namespace po = boost::program_options;
   }
 #endif
 
-#ifndef SCALAR_
-  #define SCALAR_
-  #if defined(SCALAR_DOUBLE)
-    typedef double Scalar;
-    typedef double2 Scalar2;
-    typedef double3 Scalar3;
-    typedef double4 Scalar4;
-  #else
-    typedef float Scalar;
-    typedef float2 Scalar2;
-    typedef float3 Scalar3;
-    typedef float4 Scalar4;
-  #endif
-#endif
+// Device arrays
+std::array<Scalar*, 4> d_C;
+std::array<size_t, 4> d_C_pitch_bytes;
+std::array<size_t, 4> d_C_pitch;
+std::array<Scalar*, 2> d_D;
+std::array<size_t, 2> d_D_pitch_bytes;
+std::array<size_t, 2> d_D_pitch;
+cudaArray_t d_arr_V;
+cudaTextureObject_t d_tex_V;
 
+// Host arrays
+std::array<std::vector<Scalar>, 4> C;
+
+// Pinned memory
+Scalar *p_C;
+Scalar *p_D; // Where D is will be stored -- D will be mapped to it
+
+// Eigen matrices
 Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> V;
 Eigen::MatrixXi F;
 Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> V_uv;
 Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> V_uv_img;
 Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> V_img;
 Eigen::MatrixXi F_img;
+Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> > *m_D; // Dynamically allocated map to p_D
 
+// Program parameters
 std::string model_name;
 size_t rows;
 size_t cols;
@@ -106,16 +113,24 @@ size_t N_iters; // Number of PMM iterations
 bool start_with_source = false;
 std::vector<size_t> start_source;
 bool ignore_non_acute_triangles = true;
+size_t threads_num;
+size_t warp_num;
+size_t pmm_omega;
 
+// Device information
+int device_num = 0;
+cudaDeviceProp device_prop;
+
+// Timers
 PerfUtil perfUtil;
 PerfCuda perfCuda;
 
 // 56 Arrays = 4 Directions * 2 Triangles * (1 Float (a) + 2 Floats (b) + 4 Floats (c))
 // Example: Height = 1024, Width = 1024, Scalar = float
 //    234,881,024 Bytes = 56 Arrays * 1024 Height * 1024 Width * 4 Bytes (float)
-std::array<Scalar*, PMM_ARRAYS> d_coeffs;
-PMMCoeffs<Scalar> coeffs;
-Scalar *p_coeffs;
+// std::array<Scalar*, PMM_ARRAYS> d_coeffs;
+// PMMCoeffs<Scalar> coeffs;
+// Scalar *p_coeffs;
 
 void set_colormap(igl::opengl::glfw::Viewer & viewer)
 {
@@ -148,27 +163,27 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
   switch (key) {
   case '1':
     // Plot the 3D mesh
-    viewer.data().set_mesh(V,F);
-    viewer.data().set_uv(V_uv);
-    viewer.core().align_camera_center(V,F);
+    viewer.data().set_mesh(V.cast<double>(),F);
+    viewer.data().set_uv(V_uv.cast<double>());
+    viewer.core().align_camera_center(V.cast<double>(),F);
     break;
   case '2':
     // Plot the mesh in 2D using the UV coordinates as vertex coordinates
-    viewer.data().set_mesh(V_uv,F);
-    viewer.data().set_uv(V_uv);
-    viewer.core().align_camera_center(V_uv,F);
+    viewer.data().set_mesh(V_uv.cast<double>(),F);
+    viewer.data().set_uv(V_uv.cast<double>());
+    viewer.core().align_camera_center(V_uv.cast<double>(),F);
     break;
   case '3':
     // Plot the geometry image
-    viewer.data().set_mesh(V_img, F_img);
-    viewer.data().set_uv(V_uv_img);
-    viewer.core().align_camera_center(V_img, F_img);
+    viewer.data().set_mesh(V_img.cast<double>(), F_img);
+    viewer.data().set_uv(V_uv_img.cast<double>());
+    viewer.core().align_camera_center(V_img.cast<double>(), F_img);
     break;
   case '4':
     // Plot the geometry image's UV
-    viewer.data().set_mesh(V_uv_img, F_img);
-    viewer.data().set_uv(V_uv_img);
-    viewer.core().align_camera_center(V_uv_img, F_img);
+    viewer.data().set_mesh(V_uv_img.cast<double>(), F_img);
+    viewer.data().set_uv(V_uv_img.cast<double>());
+    viewer.core().align_camera_center(V_uv_img.cast<double>(), F_img);
     break;
   case '`':
     // Toggle texture visibility
@@ -186,7 +201,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 
 int main(int argc, char *argv[])
 {
-  cudaError_t stat;
+  // cudaError_t stat;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -197,10 +212,13 @@ int main(int argc, char *argv[])
     ("harmonic,H", po::value<int>(&harmonic_const)->default_value(1), "harmonic parameterization constant")
     ("iterations,i", po::value<size_t>(&N_iters)->default_value(1), "number of PMM iterations")
     ("source,s", po::value<std::vector<size_t> >(&start_source), "start source vertices")
+    ("threads,t", po::value<size_t>(&threads_num)->default_value(32), "number of threads in each kernel block (rounded down to the nearest warp size multiple)")
+    ("omega,o", po::value<size_t>(&pmm_omega)->default_value(1), "the height of the kernel tile minus 1 (named Omega in the paper; must be at least 1)")
     #ifdef MATRIX_FILE
       ("file,f", po::value<std::string>(&matrix_filename), "file to write the matrix in")
     #endif
-    #ifdef PRINT_DEVICE_INFO
+    #ifdef DEVICE_INFO
+      ("device,d", po::value<int>(&device_num)->default_value(0), "device number to check against it's specifications")
       ("no-device-info,n", "don't print device information")
     #endif
   ;
@@ -208,7 +226,7 @@ int main(int argc, char *argv[])
   po::store(po::command_line_parser(argc, argv).options(desc).run(), vm);
   po::notify(vm);
 
-  #ifdef PRINT_DEVICE_INFO
+  #ifdef DEVICE_INFO
     if (vm.count("no-device-info")) {
       print_device_info = false;
     }
@@ -220,6 +238,12 @@ int main(int argc, char *argv[])
 
   if (!vm.count("model") && !vm.count("height") && !vm.count("width")) {
     std::cerr << "'model', 'height' and 'width' are required arguments" << std::endl;
+    std::cout << desc << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if (device_num < 0) {
+    std::cerr << "device must be an index larger than 0" << std::endl;
     std::cout << desc << std::endl;
     exit(EXIT_FAILURE);
   }
@@ -259,69 +283,95 @@ int main(int argc, char *argv[])
 
   std::cout << std::endl;
 
-  #ifdef PRINT_DEVICE_INFO
-    if (print_device_info) {
-      int dev_num;
-      checkCuda(cudaGetDeviceCount(&dev_num));
-      for (int i = 0; i < dev_num; ++i) {
-        cudaDeviceProp prop;
-        cudaGetDeviceProperties(&prop, i);
-        std::cout << "Device number: " << i << std::endl;
-        std::cout << "\t" "Device name:" "\t\t\t" << prop.name << std::endl;
-        std::cout << "\t" "Memory clock rate:" "\t\t" << prop.memoryClockRate << " KHz" << std::endl;
-        std::cout << "\t" "Memory bus width:" "\t\t"<< prop.memoryBusWidth << " bits" << std::endl;
-        std::cout << "\t" "Peak memory bandwidth:" "\t\t" <<
-          2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0E6 <<
-          " GB/s" << std::endl;
-        std::cout << "\t" "Compute capability:" "\t\t" << prop.major << "." << prop.minor << std::endl;
-        std::cout << "\t" "Multiprocessors count:" "\t\t" << prop.multiProcessorCount << std::endl;
-        std::cout << "\t" "Warp size:" "\t\t\t" << prop.warpSize << std::endl;
-        std::cout << "\t" "Total global memory:" "\t\t" << (prop.totalGlobalMem / (double)(1<<20)) << " MiB" << std::endl;
-        std::cout << "\t" "Total const memory:" "\t\t" << (prop.totalConstMem / (double)(1<<20)) << " MiB" << std::endl;
-        std::cout << "\t" "Shared memory per block:" "\t" << (prop.sharedMemPerBlock / (double)(1<<20)) << " MiB" << std::endl;
-        std::cout << "\t" "Registers per block (4 bytes):" "\t" << prop.regsPerBlock << std::endl;
-        std::cout << "\t" "Max threads per block:" "\t\t" << prop.maxThreadsPerBlock << std::endl;
-        std::cout << "\t" "Max block dimensions:" "\t\t";
-        {
-          auto *arr = prop.maxThreadsDim;
-          int i = 0;
-          for (i = 0; i < 3; ++i) {
-            std::cout << "[" << i << "] " << arr[i] << ", ";
+  // Get the device properties
+  {
+    int num_of_devices;
+    checkCuda(cudaGetDeviceCount(&num_of_devices));
+    if (device_num < num_of_devices) {
+      checkCuda(cudaGetDeviceProperties(&device_prop, device_num));
+    }
+    else {
+      std::cerr << "device " << device_num << " doesn't exist" << std::endl;
+      std::cout << desc << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    #ifdef DEVICE_INFO
+      if (print_device_info) {
+        for (int i = 0; i < num_of_devices; ++i) {
+          cudaDeviceProp prop;
+          checkCuda(cudaGetDeviceProperties(&prop, i));
+          std::cout << "Device number: " << i << std::endl;
+          std::cout << "\t" "Device name:" "\t\t\t" << prop.name << std::endl;
+          std::cout << "\t" "Memory clock rate:" "\t\t" << prop.memoryClockRate << " KHz" << std::endl;
+          std::cout << "\t" "Memory bus width:" "\t\t"<< prop.memoryBusWidth << " bits" << std::endl;
+          std::cout << "\t" "Peak memory bandwidth:" "\t\t" <<
+            2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0E6 <<
+            " GB/s" << std::endl;
+          std::cout << "\t" "Compute capability:" "\t\t" << prop.major << "." << prop.minor << std::endl;
+          std::cout << "\t" "Multiprocessors count:" "\t\t" << prop.multiProcessorCount << std::endl;
+          std::cout << "\t" "Warp size:" "\t\t\t" << prop.warpSize << std::endl;
+          std::cout << "\t" "Total global memory:" "\t\t" << (prop.totalGlobalMem / (double)(1<<20)) << " MiB" << std::endl;
+          std::cout << "\t" "Total const memory:" "\t\t" << (prop.totalConstMem / (double)(1<<20)) << " MiB" << std::endl;
+          std::cout << "\t" "Shared memory per block:" "\t" << (prop.sharedMemPerBlock / (double)(1<<20)) << " MiB" << std::endl;
+          std::cout << "\t" "Registers per block (4 bytes):" "\t" << prop.regsPerBlock << std::endl;
+          std::cout << "\t" "Max threads per block:" "\t\t" << prop.maxThreadsPerBlock << std::endl;
+          std::cout << "\t" "Max block dimensions:" "\t\t";
+          {
+            auto *arr = prop.maxThreadsDim;
+            int i = 0;
+            for (i = 0; i < 3; ++i) {
+              std::cout << "[" << i << "] " << arr[i] << ", ";
+            }
+            std::cout << "[" << i << "] " << arr[i] << std::endl;
           }
-          std::cout << "[" << i << "] " << arr[i] << std::endl;
-        }
-        std::cout << "\t" "Max grid dimensions:" "\t\t";
-        {
-          auto *arr = prop.maxGridSize;
-          int i = 0;
-          for (i = 0; i < 3; ++i) {
-            std::cout << "[" << i << "] " << arr[i] << ", ";
+          std::cout << "\t" "Max grid dimensions:" "\t\t";
+          {
+            auto *arr = prop.maxGridSize;
+            int i = 0;
+            for (i = 0; i < 3; ++i) {
+              std::cout << "[" << i << "] " << arr[i] << ", ";
+            }
+            std::cout << "[" << i << "] " << arr[i] << std::endl;
           }
-          std::cout << "[" << i << "] " << arr[i] << std::endl;
-        }
-        std::cout << "\t" "Memory copy pitch size:" "\t\t" << prop.memPitch << " bytes" << std::endl;
-        std::cout << "\t" "Concurrent copy and execute:" "\t" << prop.deviceOverlap << " (" << ((prop.deviceOverlap) ? (std::string("True")) : (std::string("False"))) << ")" << std::endl;
-        std::cout << "\t" "Device can map host memory:" "\t" << prop.canMapHostMemory << " (" << ((prop.canMapHostMemory) ? (std::string("True")) : (std::string("False"))) << ")" << std::endl;
-        std::cout << "\t" "Device is integrated:" "\t\t" << prop.integrated << " (" << ((prop.integrated) ? (std::string("Integrated")) : (std::string("Discrete/Dedicated"))) << ")" << std::endl;
-        std::cout << "\t" "Kernel timeout enabled:" "\t\t" << prop.kernelExecTimeoutEnabled << " (" << ((prop.kernelExecTimeoutEnabled) ? (std::string("True")) : (std::string("False"))) << ")" << std::endl;
-        std::cout << "\t" "Device compute mode:" "\t\t" << prop.computeMode << " (";
-        {
-          switch (prop.computeMode) {
-          case cudaComputeMode::cudaComputeModeDefault:
-            std::cout << "cudaComputeModeDefault";
-            break;
-          case cudaComputeMode::cudaComputeModeExclusive:
-            std::cout << "cudaComputeModeExclusive";
-            break;
-          case cudaComputeMode::cudaComputeModeProhibited:
-            std::cout << "cudaComputeModeProhibited";
-            break;
+          std::cout << "\t" "Memory copy pitch size:" "\t\t" << prop.memPitch << " bytes" << std::endl;
+          std::cout << "\t" "Concurrent copy and execute:" "\t" << prop.deviceOverlap << " (" << ((prop.deviceOverlap) ? (std::string("True")) : (std::string("False"))) << ")" << std::endl;
+          std::cout << "\t" "Device can map host memory:" "\t" << prop.canMapHostMemory << " (" << ((prop.canMapHostMemory) ? (std::string("True")) : (std::string("False"))) << ")" << std::endl;
+          std::cout << "\t" "Device is integrated:" "\t\t" << prop.integrated << " (" << ((prop.integrated) ? (std::string("Integrated")) : (std::string("Discrete/Dedicated"))) << ")" << std::endl;
+          std::cout << "\t" "Kernel timeout enabled:" "\t\t" << prop.kernelExecTimeoutEnabled << " (" << ((prop.kernelExecTimeoutEnabled) ? (std::string("True")) : (std::string("False"))) << ")" << std::endl;
+          std::cout << "\t" "Device compute mode:" "\t\t" << prop.computeMode << " (";
+          {
+            switch (prop.computeMode) {
+            case cudaComputeMode::cudaComputeModeDefault:
+              std::cout << "cudaComputeModeDefault";
+              break;
+            case cudaComputeMode::cudaComputeModeExclusive:
+              std::cout << "cudaComputeModeExclusive";
+              break;
+            case cudaComputeMode::cudaComputeModeProhibited:
+              std::cout << "cudaComputeModeProhibited";
+              break;
+            }
+            std::cout << ")" << std::endl;
           }
-          std::cout << ")" << std::endl;
         }
       }
-    }
-  #endif
+    #endif
+  }
+
+  // Number of warps
+  warp_num = threads_num / device_prop.warpSize;
+  if (warp_num < 1) {
+    std::cerr << "the program was given less than 1 threads" << std::endl << "threads must be a multiple of warp size (rounded down): " << device_prop.warpSize << std::endl;
+    std::cout << desc << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // Omega
+  if (pmm_omega < 1 || pmm_omega - 1 > (threads_num + (2 - 1)) / 2) {
+    std::cerr << "omega must be at least 1, and no bigger than ceil(threads / 2)" << std::endl;
+    std::cout << desc << std::endl;
+    exit(EXIT_FAILURE);
+  }
 
   std::cout << std::endl;
 
@@ -425,6 +475,7 @@ int main(int argc, char *argv[])
   igl::harmonic(V,F,bnd,bnd_uv,harmonic_const,V_uv);
   TIMER_END();
 
+  // Genereate the geometry img V_img
   TIMER_START("Generating geometry image");
   mesh_to_geometry_image<Scalar>(rows, V, F, V_uv, V_img, F_img, V_uv_img);
   TIMER_END();
@@ -465,21 +516,31 @@ int main(int argc, char *argv[])
     }
   #endif
 
-  // Scale UV to make the texture more clear
-  TIMER_START("Scaling UV coordinates");
-  V_uv *= 5;
-  V_uv_img *= 5;
-  TIMER_END();
+  // // Scale UV to make the texture more clear
+  // TIMER_START("Scaling UV coordinates");
+  // V_uv *= 5;
+  // V_uv_img *= 5;
+  // TIMER_END();
 
   // Precomputation
-  Scalar t = std::pow(igl::avg_edge_length(V_img,F_img),2);
+  #ifdef MATRIX_FILE
+    PMMGeodesicsData<Scalar> data;
+  #endif
   const auto precompute = [&]()
   {
-    if(!pmm_geodesics_precompute(rows, cols, V_img, F_img, coeffs, ignore_non_acute_triangles))
-    {
-      TIMER_ERROR("pmm_geodesics_precompute failed");
-      exit(EXIT_FAILURE);
-    };
+    #ifdef MATRIX_FILE
+      if(!pmm_geodesics_precompute(data, rows, cols, V_img, C, ignore_non_acute_triangles))
+      {
+        TIMER_ERROR("pmm_geodesics_precompute failed");
+        exit(EXIT_FAILURE);
+      };
+    #else
+      if(!pmm_geodesics_precompute(rows, cols, V_img, C, ignore_non_acute_triangles))
+      {
+        TIMER_ERROR("pmm_geodesics_precompute failed");
+        exit(EXIT_FAILURE);
+      };
+    #endif
   };
   TIMER_START("Precomputing geodesics data");
   precompute();
@@ -545,22 +606,36 @@ int main(int argc, char *argv[])
       viewer.core().proj, viewer.core().viewport, V_img, F_img, fid, bc))
     {
       TIMER_START("Running PMM");
-      Eigen::Matrix<Scalar, Eigen::Dynamic, 1> D;
+      Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> > &D = *m_D;
       // if big mesh, just use closest vertex. Otherwise, blend distances to
       // vertices of face using barycentric coordinates.
       // if(F_img.rows()>100000)
       {
         // 3d position of hit
-        const Eigen::RowVector3d m3 =
+        // const Eigen::RowVector3d m3 =
+        const Eigen::Matrix<Scalar, 1, 3> m3 =
           V_img.row(F_img(fid,0))*bc(0) + V_img.row(F_img(fid,1))*bc(1) + V_img.row(F_img(fid,2))*bc(2);
         int cid = 0;
-        Eigen::Vector3d(
+        // Eigen::Vector3d(
+        Eigen::Matrix<Scalar, 3, 1>(
             (V_img.row(F_img(fid,0))-m3).squaredNorm(),
             (V_img.row(F_img(fid,1))-m3).squaredNorm(),
             (V_img.row(F_img(fid,2))-m3).squaredNorm()).minCoeff(&cid);
         const int vid = F_img(fid,cid);
         std::cout << "Source index: " << vid << std:: endl;
-        pmm_geodesics_solve(coeffs, d_coeffs, p_coeffs, V_img, F_img, (Eigen::VectorXi(1,1)<<vid).finished(), D, N_iters);
+        pmm_geodesics_solve(
+          rows, cols,
+          device_prop.maxGridSize[0],
+          device_prop.maxThreadsPerBlock,
+          device_prop.warpSize,
+          device_prop.sharedMemPerBlock,
+          d_C, d_C_pitch_bytes, d_C_pitch,
+          d_tex_V,
+          (Eigen::Matrix<size_t, Eigen::Dynamic, 1>(1, 1) << vid).finished(),
+          D, p_D,
+          d_D, d_D_pitch_bytes, d_D_pitch,
+          N_iters, warp_num, pmm_omega
+        );
       }
       // else
       // {
@@ -575,7 +650,7 @@ int main(int argc, char *argv[])
       // }
       TIMER_END();
       TIMER_START("Updating distances");
-      viewer.data().set_data(D);
+      viewer.data().set_data(D.cast<double>());
       TIMER_END();
       #ifdef MATLAB_DEBUG
         TIMER_START("Making a copy of the distance map");
@@ -642,11 +717,11 @@ int main(int argc, char *argv[])
   // Plot the geometry image
   // igl::opengl::glfw::Viewer viewer;
   TIMER_START("Drawing mesh");
-  viewer.data().set_mesh(V_img, F_img);
+  viewer.data().set_mesh(V_img.cast<double>(), F_img);
   TIMER_END();
   // viewer.data().set_uv(V_uv_img);
   TIMER_START("Initializing geodesic distances to zero");
-  viewer.data().set_data(Eigen::Matrix<Scalar, Eigen::Dynamic, 1>::Zero(V_img.rows()));
+  viewer.data().set_data(Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(V_img.rows()));
   TIMER_END();
   TIMER_START("Setting color map");
   set_colormap(viewer);
@@ -658,6 +733,121 @@ int main(int argc, char *argv[])
 
   // Draw checkerboard texture
   viewer.data().show_texture = true;
+
+  // Allocate device V array
+  perfCuda.meas("Allocating device V array");
+  {
+    cudaChannelFormatDesc chanDesc = { sizeof(TexScalar) * 8, 0, 0, 0, cudaChannelFormatKindTexScalar };
+    cudaExtent extent = make_cudaExtent(cols, rows, 3);
+    checkCuda(cudaMalloc3DArray(&d_arr_V, &chanDesc, extent));
+  }
+  perfCuda.stop();
+
+  // Copy V to the device
+  perfCuda.meas("Copying V to the device");
+  {
+    Scalar *p_V;
+    checkCuda(cudaMallocHost((void**)&p_V, img_len * 3 * sizeof(TexScalar)));
+    if (std::is_same<TexScalar, Scalar>()) { // If TexScalar and Scalar are the same use memcpy, because it is faster
+      std::memcpy(p_V, V_img.data(), img_len * 3 * sizeof(TexScalar));
+    }
+    else for (size_t i = 0; i < img_len * 3; ++i) { // Else, cast Scalar to TexScalar
+      p_V[i] = static_cast<TexScalar>(V_img.data()[i]);
+    }
+    cudaMemcpy3DParms cpyParams;
+    std::memset(&cpyParams, 0, sizeof(cpyParams));
+    cpyParams.srcPtr = make_cudaPitchedPtr(p_V, cols * sizeof(TexScalar), cols, rows); // The third dimension is not mentioned here
+    cpyParams.dstArray = d_arr_V; // Copying to the device cuda array
+    cpyParams.extent = make_cudaExtent(cols, rows, 3); // Here the third dimension is mentioned
+    cpyParams.kind = cudaMemcpyHostToDevice; // Copying from the host to the device
+    checkCuda(cudaMemcpy3D(&cpyParams));
+    checkCuda(cudaFreeHost(p_V));
+  }
+  perfCuda.stop();
+
+  // Create V texture on the device
+  perfCuda.meas("Creating device V texture object");
+  {
+    cudaResourceDesc resDesc; // The texture is made from CUDA array
+    std::memset(&resDesc, 0, sizeof(resDesc));
+    resDesc.resType = cudaResourceTypeArray;
+    resDesc.res.array.array = d_arr_V;
+    cudaTextureDesc texDesc; // Describes the texture's properties
+    std::memset(&texDesc, 0, sizeof(texDesc));
+    for (int i = 0; i < 3; ++i) {
+      texDesc.addressMode[i] = cudaAddressModeClamp; // Clamp the coordinates for each of the dimensions (limit from 0 to 'LEN - 1')
+    }
+    texDesc.filterMode = cudaFilterModePoint; // Don't interpolate the data between points
+    texDesc.readMode = cudaReadModeElementType; // Don't change the type of integers to floats (doesn't really apply here anyway)
+    texDesc.normalizedCoords = false; // Texture coordinates are from 0 to 'LENGTH - 1', and not from 0 to 1
+    checkCuda(cudaCreateTextureObject(&d_tex_V, &resDesc, &texDesc, NULL)); // Create the texture object
+  }
+  perfCuda.stop();
+
+  // Allocate pinned memory for p_C
+  TIMER_START("Allocating pinned memory for C");
+  {
+    checkCuda(cudaMallocHost((void**)&p_C, PMM_COEFF_PITCH * (cols - 1) * 2 * (rows - 1) * sizeof(Scalar)));
+  }
+  TIMER_END();
+
+  // Allocate device memory for d_C
+  perfCuda.meas("Allocating device C memory");
+  {
+    unsigned i = 0;
+    for (; i < 2; ++i) { // Allocate row C
+      checkCuda(cudaMallocPitch((void**)&d_C[i], &d_C_pitch_bytes[i], (cols - 1) * PMM_COEFF_PITCH * sizeof(Scalar), 2 * (rows - 1)));
+      d_C_pitch[i] = d_C_pitch_bytes[i] / sizeof(Scalar);
+    }
+    for (; i < 4; ++i) { // Allocate col C
+      checkCuda(cudaMallocPitch((void**)&d_C[i], &d_C_pitch_bytes[i], (rows - 1) * PMM_COEFF_PITCH * sizeof(Scalar), 2 * (cols - 1)));
+      d_C_pitch[i] = d_C_pitch_bytes[i] / sizeof(Scalar);
+    }
+  }
+  perfCuda.stop();
+
+  // Copy C to the device
+  TIMER_START("Copying C to the device");
+  {
+    unsigned i = 0;
+    for (; i < 2; ++i) {
+      // Copy from C[i] to p_C
+      std::memcpy(p_C, C[i].data(), (cols - 1) * PMM_COEFF_PITCH * 2 * (rows - 1) * sizeof(Scalar));
+      // Copy from p_C to d_C[i]
+      size_t C_pitch_bytes = (cols - 1) * PMM_COEFF_PITCH * sizeof(Scalar);
+      size_t width_bytes = C_pitch_bytes;
+      size_t height = 2 * (rows - 1);
+      checkCuda(cudaMemcpy2D(d_C[i], d_C_pitch_bytes[i], p_C, C_pitch_bytes, width_bytes, height, cudaMemcpyHostToDevice));
+    }
+    for (; i < 4; ++i) {
+      // Copy from C[i] to p_C
+      std::memcpy(p_C, C[i].data(), (rows - 1) * PMM_COEFF_PITCH * 2 * (cols - 1) * sizeof(Scalar));
+      // Copy from p_C to d_C[i]
+      size_t C_pitch_bytes = (rows - 1) * PMM_COEFF_PITCH * sizeof(Scalar);
+      size_t width_bytes = C_pitch_bytes;
+      size_t height = 2 * (cols - 1);
+      checkCuda(cudaMemcpy2D(d_C[i], d_C_pitch_bytes[i], p_C, C_pitch_bytes, width_bytes, height, cudaMemcpyHostToDevice));
+    }
+  }
+  TIMER_END();
+
+  // Allocate pinned memory for p_D
+  TIMER_START("Allocating pinned memory for D");
+  {
+    checkCuda(cudaMallocHost((void**)&p_D, cols * rows * sizeof(Scalar)));
+    m_D = new Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> >(p_D, cols * rows, 1);
+  }
+  TIMER_END();
+
+  // Allocate device memory for d_D
+  perfCuda.meas("Allocating device D memory");
+  {
+    checkCuda(cudaMallocPitch((void**)&d_D[0], &d_D_pitch_bytes[0], cols * sizeof(Scalar), rows));
+    d_D_pitch[0] = d_D_pitch_bytes[0] / sizeof(Scalar);
+    checkCuda(cudaMallocPitch((void**)&d_D[1], &d_D_pitch_bytes[1], rows * sizeof(Scalar), cols));
+    d_D_pitch[1] = d_D_pitch_bytes[1] / sizeof(Scalar);
+  }
+  perfCuda.stop();
 
   // If supplied with the last optional argument of starting source,
   //  initially run the PMM algorithm on it
@@ -673,12 +863,22 @@ int main(int argc, char *argv[])
       start_source_str = sout.str();
     }
     TIMER_START("Running initial PMM with " + start_source_str);
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 1> D;
-    Eigen::Map<Eigen::Matrix<size_t, -1, -1> > start_source_vec(start_source.data(), start_source.size(), 1);
-    pmm_geodesics_solve(data, V_img, F_img, start_source_vec, D, N_iters);
+    Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> > &D = *m_D;
+    Eigen::Map<Eigen::Matrix<size_t, Eigen::Dynamic, 1> > start_source_vec(start_source.data(), start_source.size(), 1);
+    pmm_geodesics_solve(
+      rows, cols,
+      device_prop.maxGridSize[0],
+      device_prop.maxThreadsPerBlock,
+      device_prop.warpSize,
+      device_prop.sharedMemPerBlock,
+      d_C, d_C_pitch_bytes, d_C_pitch,
+      d_tex_V, start_source_vec, D, p_D,
+      d_D, d_D_pitch_bytes, d_D_pitch,
+      N_iters, warp_num, pmm_omega
+    );
     TIMER_END();
     TIMER_START("Updating distances");
-    viewer.data().set_data(D);
+    viewer.data().set_data(D.cast<double>());
     TIMER_END();
     #ifdef MATLAB_DEBUG
       TIMER_START("Making a copy of the distance map");
@@ -729,4 +929,21 @@ int main(int argc, char *argv[])
       }
     }
   #endif
+
+  // Free device memory
+  for (unsigned i = 0; i < 4; ++i) {
+    checkCuda(cudaFree(d_C[i]));
+  }
+  for (unsigned i = 0; i < 2; ++i) {
+    checkCuda(cudaFree(d_D[i]));
+  }
+  checkCuda(cudaDestroyTextureObject(d_tex_V));
+  checkCuda(cudaFreeArray(d_arr_V));
+
+  // Free CUDA host allocated memory
+  checkCuda(cudaFreeHost(p_C));
+  checkCuda(cudaFreeHost(p_D));
+
+  // Free dynamic allocation
+  delete m_D;
 }

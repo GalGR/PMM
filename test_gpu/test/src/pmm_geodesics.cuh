@@ -1,7 +1,7 @@
 #ifndef PMM_GEODESICS_H_
 #define PMM_GEODESICS_H_
 
-#include "pmm.h"
+#include "pmm.cuh"
 
 #include <vector>
 #include <array>
@@ -76,10 +76,15 @@ enum PMM_OFFS {
 #define PMM_TRI_SIZE 7
 // No Skip (first in the triangle)
 #define PMM_A_OFF 0
-// 1 Skip = 1 Float (a)
-#define PMM_B_OFF 1
-// 3 Skip = 1 Float (a) + 2 Floats (b)
-#define PMM_C_OFF 3
+// 2 Skip = 1 Float (a) + 1 Padding
+#define PMM_B_OFF 2
+// 4 Skip = 1 Float (a) + 1 Padding + 2 Floats (b)
+#define PMM_C_OFF 4
+
+// The coefficients sizes in number of elements
+#define PMM_A_SIZE 1
+#define PMM_B_SIZE 2
+#define PMM_C_SIZE 4
 
 // Coefficients array elements pitch
 #define PMM_COEFF_PITCH 8
@@ -164,25 +169,40 @@ struct PMMGeodesicsData {
     }
 };
 
-template < typename Scalar, typename DerivedV, typename DerivedF >
+template <typename Scalar, typename DerivedV>
 PMM_INLINE bool pmm_geodesics_precompute(
+    PMMGeodesicsData<Scalar> &data,
     size_t rows, size_t cols,
-    const Eigen::MatrixBase<DerivedV> & V,
-    const Eigen::MatrixBase<DerivedF> & F,
-    PMMCoeffs &coeffs,
+    const Eigen::MatrixBase<DerivedV> &V,
+    std::array<std::vector<Scalar>, 4> &C,
     bool ignore_non_acute_triangles = false);
 
-template < typename Scalar, typename DerivedV, typename DerivedF, typename DerivedS, typename DerivedD>
+template <typename Scalar, typename DerivedV>
+PMM_INLINE bool pmm_geodesics_precompute(
+    size_t rows, size_t cols,
+    const Eigen::MatrixBase<DerivedV> &V,
+    std::array<std::vector<Scalar>, 4> &C,
+    bool ignore_non_acute_triangles = false);
+
+template <typename Scalar, typename DerivedS, typename DerivedD>
 PMM_INLINE void pmm_geodesics_solve(
-    const PMMCoeffs<Scalar> &coeffs,
-    std::array<Scalar*, PMM_ARRAYS> &d_coeffs,
-    Scalar *p_coeffs,
-    const Eigen::MatrixBase<DerivedV> & V,
-    const Eigen::MatrixBase<DerivedF> & F,
-    const Eigen::MatrixBase<DerivedS> & S,
-    Eigen::PlainObjectBase<DerivedD> & D,
+    size_t rows, size_t cols,
+    int maxGridWidth,
+    int maxThreads,
+    int warpSize,
+    size_t maxSharedMem,
+    std::array<Scalar*, 4> &d_C,
+    const std::array<size_t, 4> &d_C_pitch_bytes,
+    const std::array<size_t, 4> &d_C_pitch,
+    const cudaTextureObject_t V,
+    const Eigen::MatrixBase<DerivedS> &S,
+    Scalar *p_D,
+    std::array<Scalar*, 2> &d_D,
+    const std::array<size_t, 2> &d_D_pitch_bytes,
+    const std::array<size_t, 2> &d_D_pitch,
     size_t N,
-    bool D_empty = true);
+    size_t numWarps,
+    size_t omega);
 
 #include "pmm_geodesics_precompute.inl"
 

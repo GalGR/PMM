@@ -29,9 +29,9 @@ if(MATRIX_FILE)
 endif()
 
 # Device info
-option(PRINT_DEVICE_INFO             "Print the device info" ON)
-if(PRINT_DEVICE_INFO)
-    add_definitions(-DPRINT_DEVICE_INFO)
+option(DEVICE_INFO             "Query the device for information" ON)
+if(DEVICE_INFO)
+    add_definitions(-DDEVICE_INFO)
 endif()
 
 # Scalar type
@@ -39,6 +39,10 @@ option(SCALAR_DOUBLE                 "Use double precision floating point number
 if(SCALAR_DOUBLE)
     add_definitions(-DSCALAR_DOUBLE)
 endif()
+
+# CUDA
+find_library(CUDART_LIBRARY cudart ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
 find_package(LIBIGL REQUIRED QUIET)
 # add_subdirectory(cmake)
@@ -53,7 +57,7 @@ file(GLOB SRCFILES src/*.cpp)
 file(GLOB CUDAFILES src/*.cu)
 add_executable(${PROJECT_NAME} ${CUDAFILES} ${SRCFILES})
 set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw ${Boost_LIBRARIES} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw ${Boost_LIBRARIES} ${CUDART_LIBRARY} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
 
 # Ignore deprecation warnings
 if(NOT MSVC)
