@@ -158,7 +158,7 @@ enum update_method {
   UPDATE_RECALCULATE,
 };
 
-bool update(update_method method = UPDATE_ADD) {
+bool update(update_method method = UPDATE_CLEAR) {
   int fid;
   Eigen::Vector3f bc;
   // Cast a ray in the view direction starting from the mouse position
