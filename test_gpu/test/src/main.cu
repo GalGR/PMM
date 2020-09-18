@@ -725,7 +725,7 @@ int main(int argc, char *argv[])
   viewer.callback_mouse_down =
     [](igl::opengl::glfw::Viewer& viewer, int bttn, int mod)->bool
   {
-    if (bttn == GLFW_MOUSE_BUTTON_LEFT && (mod == GLFW_MOD_CTRL || mod == GLFW_MOD_SHIFT)) {
+    if (bttn == GLFW_MOUSE_BUTTON_LEFT && (mod == GLFW_MOD_CONTROL || mod == GLFW_MOD_SHIFT)) {
       update_method method;
       if (mod == GLFW_MOD_CONTROL) {
         method = UPDATE_CLEAR;
