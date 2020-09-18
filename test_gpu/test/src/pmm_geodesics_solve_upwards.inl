@@ -60,7 +60,7 @@ __global__ void solve_upwards(Scalar *D, cudaTextureObject_t V, Scalar *C, unsig
                     Scalar3 x_l = make_Scalar3(v_x_l - v_x_0, v_y_l - v_y_0, v_z_l - v_z_0);
                     Scalar3 x_m = make_Scalar3(v_x_m - v_x_0, v_y_m - v_y_0, v_z_m - v_z_0);
                     Scalar3 x_r = make_Scalar3(v_x_r - v_x_0, v_y_r - v_y_0, v_z_r - v_z_0);
-                    if (x >= < 1 && threadIdx.x > 0 && threadIdx.x < tile_width - 1) { // Left triangle -- even rows coefficients
+                    if (x > 0 && threadIdx.x > 0 && threadIdx.x < tile_width - 1) { // Left triangle -- even rows coefficients
                         // Scalar  a  = *reinterpret_cast<Scalar *>(&C[(PMM_A_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (y + i) * C_pitch * 2]);
                         // Scalar2 b  = *reinterpret_cast<Scalar2*>(&C[(PMM_B_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (y + i) * C_pitch * 2]);
                         Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[(PMM_A_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (y + i) * C_pitch * 2]);
@@ -79,7 +79,7 @@ __global__ void solve_upwards(Scalar *D, cudaTextureObject_t V, Scalar *C, unsig
                         #endif
                         d_shared[idx_d_0] = fmin(d_new, d_shared[idx_d_0]);
                     }
-                    if (x <= width - 1 && threadIdx.x > 0 && threadIdx.x < tile_width - 1) { // Right triangle -- odd rows coefficients
+                    if (x < width - 1 && threadIdx.x > 0 && threadIdx.x < tile_width - 1) { // Right triangle -- odd rows coefficients
                         // Scalar  a  = *reinterpret_cast<Scalar *>(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + (y + i) * C_pitch * 2 + C_pitch]);
                         // Scalar2 b  = *reinterpret_cast<Scalar2*>(&C[(PMM_B_OFF + 0) + x * PMM_COEFF_PITCH + (y + i) * C_pitch * 2 + C_pitch]);
                         Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + (y + i) * C_pitch * 2 + C_pitch]);
