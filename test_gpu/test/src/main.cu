@@ -723,7 +723,7 @@ int main(int argc, char *argv[])
   #endif
 
   viewer.callback_mouse_down =
-    [&](igl::opengl::glfw::Viewer& viewer, int, int)->bool
+    [](igl::opengl::glfw::Viewer& viewer, int, int)->bool
   {
     if(update())
     {
@@ -733,7 +733,7 @@ int main(int argc, char *argv[])
     return false;
   };
   viewer.callback_mouse_move =
-    [&](igl::opengl::glfw::Viewer& viewer, int, int)->bool
+    [](igl::opengl::glfw::Viewer& viewer, int, int)->bool
     {
       if(down_on_mesh)
       {
@@ -743,7 +743,7 @@ int main(int argc, char *argv[])
       return false;
     };
   viewer.callback_mouse_up =
-    [&down_on_mesh](igl::opengl::glfw::Viewer& viewer, int, int)->bool
+    [](igl::opengl::glfw::Viewer& viewer, int, int)->bool
   {
     down_on_mesh = false;
     return false;
