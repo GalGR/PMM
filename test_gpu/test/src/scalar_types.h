@@ -9,6 +9,7 @@
         #define make_Scalar2(X, Y)       make_double2(X, Y)
         #define make_Scalar3(X, Y, Z)    make_double3(X, Y, Z)
         #define make_Scalar4(X, Y, Z, W) make_double4(X, Y, Z, W)
+        #define cublasScalargeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC) cublasDgeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC)
     #endif
 #else
     typedef float Scalar;
@@ -19,6 +20,7 @@
         #define make_Scalar2(X, Y)       make_float2(X, Y)
         #define make_Scalar3(X, Y, Z)    make_float3(X, Y, Z)
         #define make_Scalar4(X, Y, Z, W) make_float4(X, Y, Z, W)
+        #define cublasScalargeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC) cublasSgeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC)
     #endif
 #endif
 

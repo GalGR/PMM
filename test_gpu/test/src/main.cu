@@ -13,6 +13,7 @@
 #include <igl/PI.h>
 
 #include <cuda_runtime.h>
+#include <cublas_v2.h>
 #include "utils_cuda.h"
 #include "scalar_types.h"
 
@@ -76,6 +77,9 @@ namespace po = boost::program_options;
     file.flush();
   }
 #endif
+
+// CUBLAS handle
+cublasHandle_t cublasHandle;
 
 // Device arrays
 std::array<Scalar*, 4> d_C;
@@ -477,7 +481,14 @@ int main(int argc, char *argv[])
 
   // Genereate the geometry img V_img
   TIMER_START("Generating geometry image");
-  mesh_to_geometry_image<Scalar>(rows, V, F, V_uv, V_img, F_img, V_uv_img);
+  {
+    // Quick and dirty fix for the type issues there
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> V_img_double, V_uv_img_double;
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> V_double = V.cast<double>(), V_uv_double = V_uv.cast<double>();
+    mesh_to_geometry_image(rows, V_double, F, V_uv_double, V_img_double, F_img, V_uv_img_double);
+    V_img = V_img_double.cast<Scalar>();
+    V_uv_img = V_uv_img_double.cast<Scalar>();
+  }
   TIMER_END();
 
   #ifdef MATRIX_FILE
@@ -623,16 +634,19 @@ int main(int argc, char *argv[])
             (V_img.row(F_img(fid,2))-m3).squaredNorm()).minCoeff(&cid);
         const int vid = F_img(fid,cid);
         std::cout << "Source index: " << vid << std:: endl;
+        std::vector<size_t> S;
+        S.push_back(vid);
         pmm_geodesics_solve(
           rows, cols,
           device_prop.maxGridSize[0],
           device_prop.maxThreadsPerBlock,
           device_prop.warpSize,
           device_prop.sharedMemPerBlock,
+          cublasHandle,
           d_C, d_C_pitch_bytes, d_C_pitch,
           d_tex_V,
-          (Eigen::Matrix<size_t, Eigen::Dynamic, 1>(1, 1) << vid).finished(),
-          D, p_D,
+          S,
+          p_D,
           d_D, d_D_pitch_bytes, d_D_pitch,
           N_iters, warp_num, pmm_omega
         );
@@ -849,6 +863,16 @@ int main(int argc, char *argv[])
   }
   perfCuda.stop();
 
+  // Create the CUBLAS handle
+  TIMER_START("Creating CUBLAS handle");
+  {
+    if (cublasCreate(&cublasHandle) != CUBLAS_STATUS_SUCCESS) {
+      TIMER_ERROR("Error: Couldn't create the CUBLAS handle");
+      exit(EXIT_FAILURE);
+    }
+  }
+  TIMER_END();
+
   // If supplied with the last optional argument of starting source,
   //  initially run the PMM algorithm on it
   if (start_with_source) {
@@ -864,15 +888,16 @@ int main(int argc, char *argv[])
     }
     TIMER_START("Running initial PMM with " + start_source_str);
     Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> > &D = *m_D;
-    Eigen::Map<Eigen::Matrix<size_t, Eigen::Dynamic, 1> > start_source_vec(start_source.data(), start_source.size(), 1);
+    // Eigen::Map<Eigen::Matrix<size_t, Eigen::Dynamic, 1> > start_source_vec(start_source.data(), start_source.size(), 1);
     pmm_geodesics_solve(
       rows, cols,
       device_prop.maxGridSize[0],
       device_prop.maxThreadsPerBlock,
       device_prop.warpSize,
       device_prop.sharedMemPerBlock,
+      cublasHandle,
       d_C, d_C_pitch_bytes, d_C_pitch,
-      d_tex_V, start_source_vec, D, p_D,
+      d_tex_V, start_source, p_D,
       d_D, d_D_pitch_bytes, d_D_pitch,
       N_iters, warp_num, pmm_omega
     );
@@ -901,13 +926,13 @@ int main(int argc, char *argv[])
         matrix_file.seekp(matrix_file_D_pos);
         TIMER_START("Writing D matrix");
         try {
-          bin_write_arr(matrix_file, D.data(), img_len);
+          bin_write_arr(matrix_file, p_D, img_len);
         } catch (const std::exception &e) {
           TIMER_ERROR("Write to matrix file failed");
           std::cerr << "Exception: " << e.what() << std::endl;
           exit(EXIT_FAILURE);
         }
-        std::cout << "Written " << img_len * sizeof(D.data()[0]) << " bytes (seek=" << matrix_file.tellp() << ")" << std::endl;
+        std::cout << "Written " << img_len * sizeof(p_D[0]) << " bytes (seek=" << matrix_file.tellp() << ")" << std::endl;
         TIMER_END();
       }
     #endif
@@ -929,6 +954,9 @@ int main(int argc, char *argv[])
       }
     }
   #endif
+
+  // Destory the CUBLAS handle
+  cublasDestroy(cublasHandle);
 
   // Free device memory
   for (unsigned i = 0; i < 4; ++i) {

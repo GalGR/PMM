@@ -7,6 +7,7 @@
 #include <array>
 #include <stddef.h>
 #include <Eigen/Dense>
+#include <cublas_v2.h>
 
 // 56 Arrays = 4 Directions * 2 Triangles * (1 Float (a) + 2 Floats (b) + 4 Floats (c))
 // Example: Height = 1024, Width = 1024, Scalar = float
@@ -184,18 +185,19 @@ PMM_INLINE bool pmm_geodesics_precompute(
     std::array<std::vector<Scalar>, 4> &C,
     bool ignore_non_acute_triangles = false);
 
-template <typename Scalar, typename DerivedS, typename DerivedD>
+template <typename Scalar>
 PMM_INLINE void pmm_geodesics_solve(
     size_t rows, size_t cols,
     int maxGridWidth,
     int maxThreads,
     int warpSize,
     size_t maxSharedMem,
+    cublasHandle_t cublasHandle,
     std::array<Scalar*, 4> &d_C,
     const std::array<size_t, 4> &d_C_pitch_bytes,
     const std::array<size_t, 4> &d_C_pitch,
     const cudaTextureObject_t V,
-    const Eigen::MatrixBase<DerivedS> &S,
+    const std::vector<size_t> &S,
     Scalar *p_D,
     std::array<Scalar*, 2> &d_D,
     const std::array<size_t, 2> &d_D_pitch_bytes,

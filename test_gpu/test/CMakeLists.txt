@@ -40,8 +40,16 @@ if(SCALAR_DOUBLE)
     add_definitions(-DSCALAR_DOUBLE)
 endif()
 
+# CUDA debug print
+option(CUDA_DEBUG_PRINT              "Enable CUDA debug printing at the kernel" OFF)
+if(CUDA_DEBUG_PRINT)
+    add_definitions(-DCUDA_DEBUG_PRINT)
+endif()
+
 # CUDA
+find_package(CUDA REQUIRED)
 find_library(CUDART_LIBRARY cudart ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+find_library(CUDA_CUBLAS cublas ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
 find_package(LIBIGL REQUIRED QUIET)
@@ -57,7 +65,10 @@ file(GLOB SRCFILES src/*.cpp)
 file(GLOB CUDAFILES src/*.cu)
 add_executable(${PROJECT_NAME} ${CUDAFILES} ${SRCFILES})
 set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw ${Boost_LIBRARIES} ${CUDART_LIBRARY} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
+if(CMAKE_BUILD_TYPE EQUAL Debug)
+    target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-G -Xcompiler -rdynamic -lineinfo>)
+endif()
+target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw ${Boost_LIBRARIES} ${CUDART_LIBRARY} ${CUDA_CUBLAS} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
 
 # Ignore deprecation warnings
 if(NOT MSVC)

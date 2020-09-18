@@ -1,5 +1,3 @@
-#pragma once
-
 #include "mesh_processing.h"
 
 #include <limits>
@@ -8,7 +6,7 @@
 #include <iostream>
 #include "Barycentric.h"
 
-static double mesh_processing_min_distance_(std::array<std::array<double, 2>, 3> tri, std::array<double, 2> p)
+static double min_distance(std::array<std::array<double, 2>, 3> tri, std::array<double, 2> p)
 {
     double min = std::numeric_limits<double>::infinity();
     for (int i = 0; i < 3; ++i)
@@ -25,21 +23,15 @@ static double mesh_processing_min_distance_(std::array<std::array<double, 2>, 3>
     return min;
 }
 
-template <
-    typename Scalar,
-    typename DerivedV, typename DerivedF,
-    typename DerivedV_UV, typename DerivedV_IMG,
-    typename DerivedF_IMG, typename DerivedV_UV_IMG
->
 void mesh_to_geometry_image(
     const size_t size,
-    const Eigen::MatrixBase<DerivedV> &V,
-    const Eigen::MatrixBase<DerivedF> &F,
-    const Eigen::MatrixBase<DerivedV_UV> &V_uv,
-    Eigen::MatrixBase<DerivedV_IMG> &V_img,
-    Eigen::MatrixBase<DerivedF_IMG> &F_img,
-    Eigen::MatrixBase<DerivedV_UV_IMG> &V_uv_img
-) {
+    const Eigen::MatrixXd &V,
+    const Eigen::MatrixXi &F,
+    const Eigen::MatrixXd &V_uv,
+    Eigen::MatrixXd &V_img,
+    Eigen::MatrixXi &F_img,
+    Eigen::MatrixXd &V_uv_img)
+{
     // Resize the matrices to the size of the image
     V_img.resize(size * size, 3);
     F_img.resize((size - 1) * (size - 1) * 2, 3);
@@ -97,7 +89,7 @@ void mesh_to_geometry_image(
                         std::array<double, 2>{V_uv(F(i, 0), 0), V_uv(F(i, 0), 1)},
                         std::array<double, 2>{V_uv(F(i, 1), 0), V_uv(F(i, 1), 1)},
                         std::array<double, 2>{V_uv(F(i, 2), 0), V_uv(F(i, 2), 1)}});
-                double dist = mesh_processing_min_distance_(
+                double dist = min_distance(
                     std::array<std::array<double, 2>, 3>{
                         std::array<double, 2>{V_uv(F(i, 0), 0), V_uv(F(i, 0), 1)},
                         std::array<double, 2>{V_uv(F(i, 1), 0), V_uv(F(i, 1), 1)},
@@ -116,8 +108,8 @@ void mesh_to_geometry_image(
                             std::array<double, 3>{V(F(i, 0), 0), V(F(i, 0), 1), V(F(i, 0), 2)},
                             std::array<double, 3>{V(F(i, 1), 0), V(F(i, 1), 1), V(F(i, 1), 2)},
                             std::array<double, 3>{V(F(i, 2), 0), V(F(i, 2), 1), V(F(i, 2), 2)}});
-                    V_img.row(idx) << ((Scalar)xyz[0]), ((Scalar)xyz[1]), ((Scalar)xyz[2]);
-                    V_uv_img.row(idx) << ((Scalar)u), ((Scalar)v);
+                    V_img.row(idx) << xyz[0], xyz[1], xyz[2];
+                    V_uv_img.row(idx) << u, v;
                     visited[idx] = true;
                 }
             }
@@ -135,6 +127,7 @@ void mesh_to_geometry_image(
         }
     }
     // Check if been inside every vertex
+    // Check if visited every vertex
     for (int y = 0; y < size; ++y)
     {
         for (int x = 0; x < size; ++x)

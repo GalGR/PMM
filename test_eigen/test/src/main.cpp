@@ -156,5 +156,12 @@ int main(int argc, char *argv[]) {
     }
     std::cout << std::endl;
 
+    std::cout << std::endl;
+    std::cout << "NaN < 1.0: ";
+    std::cout << ((0.0 / 0.0) < 1.0) << std::endl;
+    std::cout << "NaN * false + 1.0 * true: ";
+    std::cout << ((0.0 / 0.0) * false + 1.0 * true) << std::endl;
+    std::cout << std::endl;
+
     return 0;
 }
