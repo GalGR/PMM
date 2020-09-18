@@ -727,7 +727,7 @@ int main(int argc, char *argv[])
   {
     if (bttn == GLFW_MOUSE_BUTTON_LEFT && (mod == GLFW_MOD_CTRL || mod == GLFW_MOD_SHIFT)) {
       update_method method;
-      if (mod == GLFW_MOD_CTRL) {
+      if (mod == GLFW_MOD_CONTROL) {
         method = UPDATE_CLEAR;
       }
       if (mod == GLFW_MOD_SHIFT) {
