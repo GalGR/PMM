@@ -723,12 +723,21 @@ int main(int argc, char *argv[])
   #endif
 
   viewer.callback_mouse_down =
-    [](igl::opengl::glfw::Viewer& viewer, int, int)->bool
+    [](igl::opengl::glfw::Viewer& viewer, int bttn, int mod)->bool
   {
-    if(update())
-    {
-      down_on_mesh = true;
-      return true;
+    if (bttn == GLFW_MOUSE_BUTTON_LEFT && (mod == GLFW_MOD_CTRL || mod == GLFW_MOD_SHIFT)) {
+      update_method method;
+      if (mod == GLFW_MOD_CTRL) {
+        method = UPDATE_CLEAR;
+      }
+      if (mod == GLFW_MOD_SHIFT) {
+        method = UPDATE_ADD;
+      }
+      if(update(method))
+      {
+        down_on_mesh = true;
+        return true;
+      }
     }
     return false;
   };
