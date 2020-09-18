@@ -737,7 +737,7 @@ int main(int argc, char *argv[])
     {
       if(down_on_mesh)
       {
-        update();
+        // update();
         return true;
       }
       return false;
