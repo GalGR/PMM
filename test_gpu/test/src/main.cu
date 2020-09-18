@@ -43,6 +43,11 @@ namespace po = boost::program_options;
 #ifdef MATRIX_FILE
   bool is_matrix_file = false;
   std::string matrix_filename;
+  std::ofstream matrix_file;
+  std::streampos matrix_file_rows_cols_pos;
+  std::streampos matrix_file_V_pos;
+  std::streampos matrix_file_coeff_pos;
+  std::streampos matrix_file_D_pos;
 #endif
 
 #ifdef DEVICE_INFO
@@ -389,11 +394,6 @@ int main(int argc, char *argv[])
     if (vm.count("file")) {
       is_matrix_file = true;
     }
-    std::ofstream matrix_file;
-    std::streampos matrix_file_rows_cols_pos;
-    std::streampos matrix_file_V_pos;
-    std::streampos matrix_file_coeff_pos;
-    std::streampos matrix_file_D_pos;
     if (is_matrix_file) {
       try {
         matrix_file.open(matrix_filename, std::ios::out | std::ios::binary | std::ios::trunc);
