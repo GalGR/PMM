@@ -17,168 +17,12 @@ enum PMMCudaStreams {
     PMM_LEFTWARDS_STREAM,
 };
 
-__device__ Scalar solve(const Scalar3 x1, const Scalar3 x2, const Scalar2 d, const Scalar a, const Scalar2 b2, const Scalar4 c4
-#ifdef CUDA_DEBUG_PRINT
-    , const unsigned x, const unsigned y
-#endif
-) {
-    // The Scalar 2 b is a row vector
-    // The Scalar 4 c is a col major 2x2 matrix
-    const Scalar b = -2.0 * b2.x * d.x + b2.y * d.y;
-    const Scalar c = -1.0 + (c4.x * d.x + c4.y * d.y) * d.x + (c4.z * d.x + c4.w * d.y) * d.y;
+#include "pmm_geodesics_solve_kernel.inl"
 
-    const Scalar a_2 = 2.0 * a;
-    const Scalar sqroot = sqrt(b * b - 4.0 * a * c);
-    const Scalar rhs = sqroot / a_2;
-    const Scalar lhs = -b / a_2;
-    const Scalar d_quadratic = fmax(lhs - rhs, lhs + rhs);
-
-    const Scalar x1_norm = sqrt(x1.x * x1.x + x1.y * x1.y + x1.z * x1.z);
-    const Scalar x2_norm = sqrt(x2.x * x2.x + x2.y * x2.y + x2.z * x2.z);
-    const Scalar d_dijkstra = fmin(d.x + x1_norm, d.y + x2_norm);
-
-    const bool cond_nan = isnan(d_quadratic);
-    const bool cond_max = d_quadratic < fmax(d.x, d.y);
-    const bool cond_monotonicity = (c4.x * (d.x - d_quadratic) + c4.z * (d.y - d_quadratic) > 0.0)
-                                 * (c4.y * (d.x - d_quadratic) + c4.w * (d.y - d_quadratic) > 0.0);
-    const bool cond = cond_nan || cond_max || cond_monotonicity;
-
-    #ifdef CUDA_DEBUG_PRINT
-        printf("SOLVE: gridDim %d, blockDim %d, block %d, thread %d: (x,y)=(%d,%d) cond=%d, d_dijkstra=%f, d_quadratic=%f, d_out=%f\n",
-        gridDim.x, blockDim.x, blockIdx.x, threadIdx.x, x, y,
-        cond, d_dijkstra, d_quadratic, cond ? d_dijkstra : d_quadratic);
-    #endif
-
-    return cond ? d_dijkstra : d_quadratic;
-}
-
-// #include "pmm_geodesics_solve_upwards.inl"
-// #include "pmm_geodesics_solve_downwards.inl"
+#include "pmm_geodesics_solve_upwards.inl"
+#include "pmm_geodesics_solve_downwards.inl"
 // #include "pmm_geodesics_solve_rightwards.inl"
 // #include "pmm_geodesics_solve_leftwards.inl"
-
-__global__ void solve_upwards(Scalar *D, cudaTextureObject_t V, Scalar *C, unsigned tile_width, unsigned tile_height, unsigned tile_pitch, unsigned tile_eff_width, unsigned tile_eff_height, unsigned tile_offset, unsigned width, unsigned height, unsigned D_pitch, unsigned C_pitch) {
-    extern __shared__ Scalar d_shared[];
-    #ifdef CUDA_DEBUG_PRINT
-        const unsigned idx_x = threadIdx.x;
-        const unsigned block_x = blockIdx.x;
-        const unsigned block_dim = blockDim.x;
-        const unsigned grid_dim = gridDim.x;
-    #endif
-    // How many elements we go over each stride
-    const unsigned xstride = gridDim.x * tile_eff_width;
-    const unsigned ystride = tile_eff_height;
-    // Stride all over the matrix
-    for (unsigned yoffset = 0; yoffset < height - 1; yoffset += ystride) {
-        for (unsigned xoffset = 0; xoffset < width; xoffset += xstride) {
-            // Every tile is shifted by 'Omega - 1' (= 'tile_height - 2') to the left
-            const unsigned x = xoffset + blockIdx.x * tile_eff_width + threadIdx.x - tile_offset; // Negative number will result in x > width
-            const unsigned y = yoffset;
-            // Copy for each tile, 'D' to shared memory 'd_shared'
-            for (unsigned i = 0; i < tile_height && x < width; ++i) {
-                if (y + i < height) {
-                    #ifdef CUDA_DEBUG_PRINT
-                        printf("TILE: (x,y)=(%d,%d), D[%d]=%f, Shared[%d]=%f\n",
-                        x, y,
-                        x + (y + i) * D_pitch, D[x + (y + i) * D_pitch],
-                        threadIdx.x + i * tile_pitch, d_shared[threadIdx.x + i * tile_pitch]);
-                    #endif
-                    d_shared[threadIdx.x + i * tile_pitch] = D[x + (y + i) * D_pitch];
-                }
-            }
-            // Sync all threads in block after copying to shared memory
-            __syncthreads();
-            #ifdef CUDA_DEBUG_PRINT
-                if (x < width && y < height) {
-                    printf("IN: gridDim %d, blockDim %d, block %d, thread %d: (x,y)=(%d,%d), stride=(%d,%d), offset=(%d,%d), tile_width=%d, tile_height=%d, tile_pitch=%d, width=%d, height=%d, D_pitch=%d, C_pitch=%d\nShared[0][%d]=%f, Shared[1][%d]=%f, Shared[tile_height-1][%d]=%f, Shared[tile_height-2][%d]=%f\n",
-                    grid_dim, block_dim, block_x, idx_x, x, y, xstride, ystride, xoffset, yoffset, tile_width, tile_height, tile_pitch, width, height, D_pitch, C_pitch,
-                    idx_x, d_shared[idx_x], idx_x, d_shared[idx_x + tile_pitch],
-                    idx_x, d_shared[idx_x + tile_pitch * (tile_height - 1)], idx_x, d_shared[idx_x + tile_pitch * (tile_height - 2)]);
-                }
-            #endif
-            // C is organized as such: right, (left, right), left
-            for (unsigned i = 1; i < tile_height && x < width; ++i) {
-                const unsigned idx_d_0 = (threadIdx.x + 0) + (i + 0) * tile_pitch;
-                const unsigned idx_d_l = (threadIdx.x - 1) + (i - 1) * tile_pitch;
-                const unsigned idx_d_m = (threadIdx.x + 0) + (i - 1) * tile_pitch;
-                const unsigned idx_d_r = (threadIdx.x + 1) + (i - 1) * tile_pitch;
-                TexScalar v_x_l = tex3D<TexScalar>(V, (x - 1) + 0.5, (y + i - 1) + 0.5, 0 + 0.5);
-                TexScalar v_x_m = tex3D<TexScalar>(V, (x + 0) + 0.5, (y + i - 1) + 0.5, 0 + 0.5);
-                TexScalar v_x_r = tex3D<TexScalar>(V, (x + 1) + 0.5, (y + i - 1) + 0.5, 0 + 0.5);
-                TexScalar v_x_0 = tex3D<TexScalar>(V, (x + 0) + 0.5, (y + i + 0) + 0.5, 0 + 0.5);
-                TexScalar v_y_l = tex3D<TexScalar>(V, (x - 1) + 0.5, (y + i - 1) + 0.5, 1 + 0.5);
-                TexScalar v_y_m = tex3D<TexScalar>(V, (x + 0) + 0.5, (y + i - 1) + 0.5, 1 + 0.5);
-                TexScalar v_y_r = tex3D<TexScalar>(V, (x + 1) + 0.5, (y + i - 1) + 0.5, 1 + 0.5);
-                TexScalar v_y_0 = tex3D<TexScalar>(V, (x + 0) + 0.5, (y + i + 0) + 0.5, 1 + 0.5);
-                TexScalar v_z_l = tex3D<TexScalar>(V, (x - 1) + 0.5, (y + i - 1) + 0.5, 2 + 0.5);
-                TexScalar v_z_m = tex3D<TexScalar>(V, (x + 0) + 0.5, (y + i - 1) + 0.5, 2 + 0.5);
-                TexScalar v_z_r = tex3D<TexScalar>(V, (x + 1) + 0.5, (y + i - 1) + 0.5, 2 + 0.5);
-                TexScalar v_z_0 = tex3D<TexScalar>(V, (x + 0) + 0.5, (y + i + 0) + 0.5, 2 + 0.5);
-                Scalar3 x_l = make_Scalar3(v_x_l - v_x_0, v_y_l - v_y_0, v_z_l - v_z_0);
-                Scalar3 x_m = make_Scalar3(v_x_m - v_x_0, v_y_m - v_y_0, v_z_m - v_z_0);
-                Scalar3 x_r = make_Scalar3(v_x_r - v_x_0, v_y_r - v_y_0, v_z_r - v_z_0);
-                if (y + i < height) {
-                    if (threadIdx.x > 0 && x > 0) { // Left triangle -- even rows
-                        // Scalar  a  = *reinterpret_cast<Scalar *>(&C[(PMM_A_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (y + i) * C_pitch * 2]);
-                        // Scalar2 b  = *reinterpret_cast<Scalar2*>(&C[(PMM_B_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (y + i) * C_pitch * 2]);
-                        Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[(PMM_A_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (y + i) * C_pitch * 2]);
-                        Scalar4 c  = *reinterpret_cast<Scalar4*>(&C[(PMM_C_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (y + i) * C_pitch * 2]);
-                        // Scalar d_new = solve(x_l, x_m, d_l, d_m, a, b, c);
-                        Scalar d_new = solve(x_l, x_m,
-                            make_Scalar2(d_shared[idx_d_l], d_shared[idx_d_m]),
-                            ab.x, make_Scalar2(ab.z, ab.w), c
-                        #ifdef CUDA_DEBUG_PRINT
-                            , x, y
-                        #endif
-                        );
-                        #ifdef CUDA_DEBUG_PRINT
-                            printf("LEFT: grid dim %d, block dim %d, block %d, thread %d: (x,y)=(%d,%d), d_old=%f, d_new=%f\n",
-                            grid_dim, block_dim, block_x, idx_x, x, y, d_shared[idx_d_0], d_new);
-                        #endif
-                        d_shared[idx_d_0] = fmin(d_new, d_shared[idx_d_0]);
-                    }
-                    if (threadIdx.x < tile_width - 1 && x < width - 1) { // Right triangle -- odd rows
-                        // Scalar  a  = *reinterpret_cast<Scalar *>(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + (y + i) * C_pitch * 2 + C_pitch]);
-                        // Scalar2 b  = *reinterpret_cast<Scalar2*>(&C[(PMM_B_OFF + 0) + x * PMM_COEFF_PITCH + (y + i) * C_pitch * 2 + C_pitch]);
-                        Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + (y + i) * C_pitch * 2 + C_pitch]);
-                        Scalar4 c  = *reinterpret_cast<Scalar4*>(&C[(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH + (y + i) * C_pitch * 2 + C_pitch]);
-                        // Scalar d_new = solve(x_m, x_r, d_m, d_r, a, b, c);
-                        Scalar d_new = solve(x_m, x_r,
-                            make_Scalar2(d_shared[idx_d_m], d_shared[idx_d_r]),
-                            ab.x, make_Scalar2(ab.z, ab.w), c
-                        #ifdef CUDA_DEBUG_PRINT
-                            , x, y
-                        #endif
-                        );
-                        #ifdef CUDA_DEBUG_PRINT
-                            printf("RIGHT: grid dim %d, block dim %d, block %d, thread %d: (x,y)=(%d,%d), d_old=%f, d_new=%f\n",
-                            grid_dim, block_dim, block_x, idx_x, x, y, d_shared[idx_d_0], d_new);
-                        #endif
-                        d_shared[idx_d_0] = fmin(d_new, d_shared[idx_d_0]);
-                    }
-                }
-            }
-            // Sync all threads after they calculated the distances in shared memory
-            __syncthreads();
-            #ifdef CUDA_DEBUG_PRINT
-                if (x < width && y < height) {
-                    printf("OUT: gridDim %d, blockDim %d, block %d, thread %d: (x,y)=(%d,%d), stride=(%d,%d), offset=(%d,%d), tile_width=%d, tile_height=%d, tile_pitch=%d, width=%d, height=%d, D_pitch=%d, C_pitch=%d\nShared[0][%d]=%f, Shared[1][%d]=%f, Shared[tile_height-1][%d]=%f, Shared[tile_height-2][%d]=%f\n",
-                    grid_dim, block_dim, block_x, idx_x, x, y, xstride, ystride, xoffset, yoffset, tile_width, tile_height, tile_pitch, width, height, D_pitch, C_pitch,
-                    idx_x, d_shared[idx_x], idx_x, d_shared[idx_x + tile_pitch],
-                    idx_x, d_shared[idx_x + tile_pitch * (tile_height - 1)], idx_x, d_shared[idx_x + tile_pitch * (tile_height - 2)]);
-                }
-            #endif
-            // Copy for each tile, 'd_shared' to global memory 'D'
-            for (unsigned i = 1; i < tile_height && x < width; ++i) {
-                if (y + i < height && threadIdx.x >= (i - 1) && threadIdx.x < (i - 1) + tile_eff_width) {
-                    D[x + (y + i) * D_pitch] = d_shared[threadIdx.x + i * tile_pitch];
-                }
-            }
-            // Sync all threads after copying to global memory
-            __syncthreads();
-        }
-    }
-}
 
 template <typename Scalar>
 PMM_INLINE void pmm_geodesics_solve(
@@ -404,8 +248,9 @@ PMM_INLINE void pmm_geodesics_solve(
         {
             size_t tile_width = std::min(numWarps * warpSize, (size_t)maxThreads);
             size_t tile_height = omega + 1;
-            size_t tile_offset = omega - 1;
-            size_t tile_eff_width = tile_width - 2 * tile_offset;
+            size_t tile_offset = omega; // Every tile is shifted by 'Omega' (= 'tile_height - 1') to the left
+            size_t overlap = 2 * tile_offset;
+            size_t tile_eff_width = tile_width - overlap;
             size_t tile_eff_height = tile_height - 1;
             size_t tile_pitch = tile_width;
             size_t total_mem = tile_pitch * tile_height * sizeof(Scalar);
@@ -426,13 +271,23 @@ PMM_INLINE void pmm_geodesics_solve(
             );
             // Record the end of the kernel
             checkCuda(cudaEventRecord(eventStop[0], stream[0]));
-            // solve_downwards(downwardsEvent);
+            // Record the start of the kernel
+            checkCuda(cudaEventRecord(eventStart[1], stream[1]));
+            // Execute the kernel
+            // solve_downwards<<<gridDim, blockDim, total_mem, stream[1]>>>(
+            //     d_D[0], V, d_C[1],
+            //     tile_width, tile_height, tile_pitch,
+            //     tile_eff_width, tile_eff_height, tile_offset,
+            //     cols, rows,
+            //     d_D_pitch[0], d_C_pitch[1]
+            // );
+            // Record the end of the kernel
+            checkCuda(cudaEventRecord(eventStop[1], stream[1]));
         }
         // Wait for the kernels to finish
         checkCuda(cudaEventSynchronize(eventStop[0]));
-        // checkCuda(cudaEventSynchronize(eventStop[1]));
-        // // D_col = D_row; // Update the column major distance map
-        // copy_transpose_D();
+        checkCuda(cudaEventSynchronize(eventStop[1]));
+        // Copy transpose d_D[0] to d_D[1]
         {
             Scalar alpha = 1.0;
             Scalar beta = 0.0;
@@ -442,14 +297,27 @@ PMM_INLINE void pmm_geodesics_solve(
                 exit(1);
             }
         }
-        // // Rightwards and leftwards (column major)
-        // solve_rightwards();
-        // solve_leftwards();
-        // // Wait for the kernels to finish
-        // checkCuda(cudaEventSynchronize(rightwardsEvent));
-        // checkCuda(cudaEventSynchronize(leftwardsEvent));
-        // // D_row = D_col; // Update the row major distance map
-        // copy_transpose_D_T();
+        {
+            // size_t tile_width = std::min(numWarps * warpSize, (size_t)maxThreads);
+            // size_t tile_height = omega + 1;
+            // size_t tile_offset = omega - 1;
+            // size_t tile_eff_width = tile_width - 2 * tile_offset;
+            // size_t tile_eff_height = tile_height - 1;
+            // size_t tile_pitch = tile_width;
+            // size_t total_mem = tile_pitch * tile_height * sizeof(Scalar);
+            // size_t num_tiles = std::min(((cols + tile_height - 2) + (tile_width - 2 * (tile_height - 2) - 1)) / (tile_width - 2 * (tile_height - 2)), (size_t)maxGridWidth);
+            // num_tiles = std::min(num_tiles, maxSharedMem / total_mem);
+            // // Define the dimensions
+            // dim3 blockDim(tile_width);
+            // dim3 gridDim(num_tiles);
+            // // Rightwards and leftwards (column major)
+            // solve_rightwards();
+            // solve_leftwards();
+            // // Wait for the kernels to finish
+            // checkCuda(cudaEventSynchronize(rightwardsEvent));
+            // checkCuda(cudaEventSynchronize(leftwardsEvent));
+        }
+        // Copy transpose d_D[1] to d_D[0]
         {
             Scalar alpha = 1.0;
             Scalar beta = 0.0;
