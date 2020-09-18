@@ -50,18 +50,22 @@ namespace po = boost::program_options;
 #endif
 
 #if 0
-  #define TIMER_START(MSG) do { \
-                               std::cout << MSG "..." << std::endl; timer.start(); \
-                           } while(0)
-  #define TIMER_END()      do { \
-                               std::cout << "Done!\t" << timer.get_elapsed_s() << "s" << std::endl; \
-                           } while(0)
-  #define TIMER_ERROR(MSG) do { \
-                               std::cerr << "Error\t" << timer.get_elapsed_s() << "s" << ": " << MSG << std::endl; \
-                           } while(0)
+  #define TIMER_START(MSG)    do { \
+                                  std::cout << MSG "..." << std::endl; timer.start(); \
+                              } while(0)
+  #define TIMER_END()         do { \
+                                  std::cout << "Done!\t" << timer.get_elapsed_s() << "s" << std::endl; \
+                              } while(0)
+  #deifne TIMER_END_MSG(MSG)  do { \
+                                  std::cout << "Done!\t" << timer.get_elapsed_s() << "s" << ": " << MSG << std::endl; \
+                              } while(0)
+  #define TIMER_ERROR(MSG)    do { \
+                                  std::cerr << "Error\t" << timer.get_elapsed_s() << "s" << ": " << MSG << std::endl; \
+                              } while(0)
 #else
   #define TIMER_START(MSG) perfUtil.meas(MSG);
   #define TIMER_END()      perfUtil.stop();
+  #define TIMER_END_MSG()  perfUtil.stop(MSG);
   #define TIMER_ERROR(MSG) perfUtil.error(MSG)
 #endif
 
@@ -107,6 +111,9 @@ Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> V_img;
 Eigen::MatrixXi F_img;
 Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> > *m_D; // Dynamically allocated map to p_D
 
+// Source vector
+std::vector<unsigned> S;
+
 // Program parameters
 std::string model_name;
 size_t rows;
@@ -115,7 +122,7 @@ size_t img_len;
 int harmonic_const;
 size_t N_iters; // Number of PMM iterations
 bool start_with_source = false;
-std::vector<size_t> start_source;
+std::vector<unsigned> start_source;
 bool ignore_non_acute_triangles = true;
 size_t threads_num;
 size_t warp_num;
@@ -215,7 +222,7 @@ int main(int argc, char *argv[])
     ("width,w", po::value<size_t>(&cols), "geometric image width/columns")
     ("harmonic,H", po::value<int>(&harmonic_const)->default_value(1), "harmonic parameterization constant")
     ("iterations,i", po::value<size_t>(&N_iters)->default_value(1), "number of PMM iterations")
-    ("source,s", po::value<std::vector<size_t> >(&start_source), "start source vertices")
+    ("source,s", po::value<std::vector<unsigned> >(&start_source), "start source vertices")
     ("threads,t", po::value<size_t>(&threads_num)->default_value(32), "number of threads in each kernel block (rounded down to the nearest warp size multiple)")
     ("omega,o", po::value<size_t>(&pmm_omega)->default_value(1), "the height of the kernel tile minus 1 (named Omega in the paper; must be at least 1)")
     #ifdef MATRIX_FILE
@@ -494,7 +501,7 @@ int main(int argc, char *argv[])
   #ifdef MATRIX_FILE
     if (is_matrix_file) {
       matrix_file_rows_cols_pos = matrix_file.tellp();
-      std::cout << "Writing to \"" << matrix_filename << "\" the number of rows (" << rows << ")" << std::endl;
+      TIMER_START((std::stringstream() << "Writing to \"" << matrix_filename << "\" the number of rows (" << rows << ")").str());
       try {
         bin_write(matrix_file, rows);
       } catch (const std::exception &e) {
@@ -502,8 +509,8 @@ int main(int argc, char *argv[])
         std::cerr << "Exception: " << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      std::cout << "Written " << sizeof(rows) << " bytes (seek=" << matrix_file.tellp() << ")" << std::endl;
-      std::cout << "Writing to \"" << matrix_filename << "\" the number of cols (" << cols << ")" << std::endl;
+      TIMER_END_MSG((std::stringstream() << "Written " << sizeof(rows) << " bytes").str());
+      TIMER_START((std::stringstream() << "Writing to \"" << matrix_filename << "\" the number of cols (" << cols << ")").str());
       try {
         bin_write(matrix_file, cols);
       } catch (const std::exception &e) {
@@ -511,7 +518,7 @@ int main(int argc, char *argv[])
         std::cerr << "Exception: " << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      std::cout << "Written " << sizeof(cols) << " bytes (seek=" << matrix_file.tellp() << ")" << std::endl;
+      TIMER_END_MSG((std::stringstream() << "Written " << sizeof(cols) << " bytes").str());
       matrix_file_V_pos = matrix_file.tellp();
       TIMER_START("Writing V matrix");
       try {
@@ -521,8 +528,7 @@ int main(int argc, char *argv[])
         std::cerr << "Exception: " << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      std::cout << "Written " << img_len * 3 * sizeof(V_img.data()[0]) << " bytes (seek=" << matrix_file.tellp() << ")" << std::endl;
-      TIMER_END();
+      TIMER_END_MSG((std::stringstream() << "Written " << img_len * 3 * sizeof(V_img.data()[0]) << " bytes").str());
       matrix_file_coeff_pos = matrix_file.tellp();
     }
   #endif
@@ -561,7 +567,6 @@ int main(int argc, char *argv[])
     if (is_matrix_file) {
       #define STRINGIZE(X) #X
       #define MATRIX_FILE_COEFF_MACRO(ABC, DIRECTION, L_R) do { \
-          TIMER_START("Writing '" STRINGIZE(ABC) "' " STRINGIZE(DIRECTION) " " STRINGIZE(L_R) " coefficients matrix"); \
           const auto &dat = data.DIRECTION.L_R.ABC; \
           try { \
               bin_write_arr(matrix_file, dat.data(), dat.size()); \
@@ -570,9 +575,8 @@ int main(int argc, char *argv[])
               std::cerr << "Exception: " << e.what() << std::endl; \
               exit(EXIT_FAILURE); \
           } \
-          std::cout << "Written " << dat.size() * sizeof(dat.data()[0]) << " bytes (seek=" << matrix_file.tellp() << ")" << std::endl; \
-          TIMER_END(); \
       } while(0)
+      TIMER_START("Writing the coefficients matrix (old version)");
       MATRIX_FILE_COEFF_MACRO(a, upwards, left);
       MATRIX_FILE_COEFF_MACRO(b, upwards, left);
       MATRIX_FILE_COEFF_MACRO(c, upwards, left);
@@ -597,6 +601,7 @@ int main(int argc, char *argv[])
       MATRIX_FILE_COEFF_MACRO(a, leftwards, right);
       MATRIX_FILE_COEFF_MACRO(b, leftwards, right);
       MATRIX_FILE_COEFF_MACRO(c, leftwards, right);
+      TIMER_END_MSG((std::stringstream() << "Written " << 4 * 2 * PMM_TRI_SIZE * sizeof(Scalar) << " bytes").str());
       #undef STRINGIZE
       #undef MATRIX_FILE_COEFF_MACRO
 
@@ -606,7 +611,7 @@ int main(int argc, char *argv[])
 
   igl::opengl::glfw::Viewer viewer;
   bool down_on_mesh = false;
-  const auto update = [&]()->bool
+  const auto update = [&](bool is_add_source = false)->bool
   {
     int fid;
     Eigen::Vector3f bc;
@@ -634,7 +639,9 @@ int main(int argc, char *argv[])
             (V_img.row(F_img(fid,2))-m3).squaredNorm()).minCoeff(&cid);
         const int vid = F_img(fid,cid);
         std::cout << "Source index: " << vid << std:: endl;
-        std::vector<size_t> S;
+        if (!is_add_source) {
+          S.clear();
+        }
         S.push_back(vid);
         pmm_geodesics_solve(
           rows, cols,
@@ -693,8 +700,7 @@ int main(int argc, char *argv[])
             std::cerr << "Exception: " << e.what() << std::endl;
             exit(EXIT_FAILURE);
           }
-          std::cout << "Written " << img_len * sizeof(D.data()[0]) << " bytes (seek=" << matrix_file.tellp() << ")" << std::endl;
-          TIMER_END();
+          TIMER_END_MSG((std::stringstream() << "Written " << img_len * sizeof(D.data()[0]) << " bytes").str());
         }
       #endif
       return true;
@@ -879,7 +885,7 @@ int main(int argc, char *argv[])
     std::string start_source_str;
     {
       std::stringstream sout;
-      size_t i, len = start_source.size();
+      unsigned i, len = start_source.size();
       for (i = 0; i < len - 1; ++i) {
         sout << start_source[i] << ' ';
       }
@@ -888,7 +894,7 @@ int main(int argc, char *argv[])
     }
     TIMER_START("Running initial PMM with " + start_source_str);
     Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> > &D = *m_D;
-    // Eigen::Map<Eigen::Matrix<size_t, Eigen::Dynamic, 1> > start_source_vec(start_source.data(), start_source.size(), 1);
+    S = start_source;
     pmm_geodesics_solve(
       rows, cols,
       device_prop.maxGridSize[0],
@@ -932,8 +938,7 @@ int main(int argc, char *argv[])
           std::cerr << "Exception: " << e.what() << std::endl;
           exit(EXIT_FAILURE);
         }
-        std::cout << "Written " << img_len * sizeof(p_D[0]) << " bytes (seek=" << matrix_file.tellp() << ")" << std::endl;
-        TIMER_END();
+        TIMER_END_MSG((std::stringstream() << "Written " << img_len * sizeof(p_D[0]) << " bytes").str());
       }
     #endif
   }

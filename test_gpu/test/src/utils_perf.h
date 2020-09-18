@@ -14,6 +14,12 @@ private: \
         std::cout << "Done!\t" << timer.get_elapsed_##UNITS() << #UNITS << std::endl; \
     } \
     template <typename String_T> \
+    inline static void s_stop_##UNITS##_(plf::nanotimer &timer, size_t &stack, const String_T &msg) { \
+        --stack; \
+        s_indent_(std::cout, stack); \
+        std::cout << "Done!\t" << timer.get_elapsed_##UNITS() << #UNITS << ": " << msg << std::endl; \
+    } \
+    template <typename String_T> \
     inline static void s_error_##UNITS##_(plf::nanotimer &timer, size_t &stack, const String_T &msg, const std::exception &e) { \
         --stack; \
         s_indent_(std::cerr, stack); \
@@ -29,6 +35,10 @@ private: \
 public: \
     inline void stop_##UNITS() { \
         s_stop_##UNITS##_(timer_, stack_); \
+    } \
+    template <typename String_T> \
+    inline void stop_##UNITS(const String_T &msg) { \
+        s_stop_##UNITS##_(timer_, stack_, msg); \
     } \
     template <typename String_T> \
     inline void error_##UNITS(const String_T &msg) { \
@@ -70,6 +80,10 @@ public:
     }
     inline void stop() {
         stop_s();
+    }
+    template <typename String_T>
+    inline void stop(const String_T &msg) {
+        stop_s(msg);
     }
     template <typename String_T>
     inline void error(const String_T &msg) {

@@ -36,7 +36,7 @@ PMM_INLINE void pmm_geodesics_solve(
     const std::array<size_t, 4> &d_C_pitch_bytes,
     const std::array<size_t, 4> &d_C_pitch,
     const cudaTextureObject_t V,
-    const std::vector<size_t> &S,
+    const std::vector<unsigned> &S,
     Scalar *p_D,
     std::array<Scalar*, 2> &d_D,
     const std::array<size_t, 2> &d_D_pitch_bytes,
