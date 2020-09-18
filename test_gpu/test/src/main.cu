@@ -63,10 +63,10 @@ namespace po = boost::program_options;
                                   std::cerr << "Error\t" << timer.get_elapsed_s() << "s" << ": " << MSG << std::endl; \
                               } while(0)
 #else
-  #define TIMER_START(MSG) perfUtil.meas(MSG);
-  #define TIMER_END()      perfUtil.stop();
-  #define TIMER_END_MSG()  perfUtil.stop(MSG);
-  #define TIMER_ERROR(MSG) perfUtil.error(MSG)
+  #define TIMER_START(MSG)    perfUtil.meas(MSG);
+  #define TIMER_END()         perfUtil.stop();
+  #define TIMER_END_MSG(MSG)  perfUtil.stop(MSG);
+  #define TIMER_ERROR(MSG)    perfUtil.error(MSG)
 #endif
 
 #ifdef MATRIX_FILE
