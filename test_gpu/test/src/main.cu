@@ -501,7 +501,7 @@ int main(int argc, char *argv[])
   #ifdef MATRIX_FILE
     if (is_matrix_file) {
       matrix_file_rows_cols_pos = matrix_file.tellp();
-      TIMER_START((std::stringstream() << "Writing to \"" << matrix_filename << "\" the number of rows (" << rows << ")").str());
+      TIMER_START(((std::stringstream&)(std::stringstream() << "Writing to \"" << matrix_filename << "\" the number of rows (" << rows << ")")).str());
       try {
         bin_write(matrix_file, rows);
       } catch (const std::exception &e) {
@@ -509,8 +509,8 @@ int main(int argc, char *argv[])
         std::cerr << "Exception: " << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      TIMER_END_MSG((std::stringstream() << "Written " << sizeof(rows) << " bytes").str());
-      TIMER_START((std::stringstream() << "Writing to \"" << matrix_filename << "\" the number of cols (" << cols << ")").str());
+      TIMER_END_MSG(((std::stringstream&)(std::stringstream() << "Written " << sizeof(rows) << " bytes")).str());
+      TIMER_START(((std::stringstream&)(std::stringstream() << "Writing to \"" << matrix_filename << "\" the number of cols (" << cols << ")")).str());
       try {
         bin_write(matrix_file, cols);
       } catch (const std::exception &e) {
@@ -518,7 +518,7 @@ int main(int argc, char *argv[])
         std::cerr << "Exception: " << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      TIMER_END_MSG((std::stringstream() << "Written " << sizeof(cols) << " bytes").str());
+      TIMER_END_MSG(((std::stringstream&)(std::stringstream() << "Written " << sizeof(cols) << " bytes")).str());
       matrix_file_V_pos = matrix_file.tellp();
       TIMER_START("Writing V matrix");
       try {
@@ -528,7 +528,7 @@ int main(int argc, char *argv[])
         std::cerr << "Exception: " << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      TIMER_END_MSG((std::stringstream() << "Written " << img_len * 3 * sizeof(V_img.data()[0]) << " bytes").str());
+      TIMER_END_MSG(((std::stringstream&)(std::stringstream() << "Written " << img_len * 3 * sizeof(V_img.data()[0]) << " bytes")).str());
       matrix_file_coeff_pos = matrix_file.tellp();
     }
   #endif
@@ -601,7 +601,7 @@ int main(int argc, char *argv[])
       MATRIX_FILE_COEFF_MACRO(a, leftwards, right);
       MATRIX_FILE_COEFF_MACRO(b, leftwards, right);
       MATRIX_FILE_COEFF_MACRO(c, leftwards, right);
-      TIMER_END_MSG((std::stringstream() << "Written " << 4 * 2 * PMM_TRI_SIZE * sizeof(Scalar) << " bytes").str());
+      TIMER_END_MSG(((std::stringstream&)(std::stringstream() << "Written " << 4 * 2 * PMM_TRI_SIZE * sizeof(Scalar) << " bytes")).str());
       #undef STRINGIZE
       #undef MATRIX_FILE_COEFF_MACRO
 
@@ -700,7 +700,7 @@ int main(int argc, char *argv[])
             std::cerr << "Exception: " << e.what() << std::endl;
             exit(EXIT_FAILURE);
           }
-          TIMER_END_MSG((std::stringstream() << "Written " << img_len * sizeof(D.data()[0]) << " bytes").str());
+          TIMER_END_MSG(((std::stringstream&)(std::stringstream() << "Written " << img_len * sizeof(D.data()[0]) << " bytes")).str());
         }
       #endif
       return true;
@@ -938,7 +938,7 @@ int main(int argc, char *argv[])
           std::cerr << "Exception: " << e.what() << std::endl;
           exit(EXIT_FAILURE);
         }
-        TIMER_END_MSG((std::stringstream() << "Written " << img_len * sizeof(p_D[0]) << " bytes").str());
+        TIMER_END_MSG(((std::stringstream&)(std::stringstream() << "Written " << img_len * sizeof(p_D[0]) << " bytes")).str());
       }
     #endif
   }
