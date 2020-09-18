@@ -143,6 +143,12 @@ PerfCuda perfCuda;
 // PMMCoeffs<Scalar> coeffs;
 // Scalar *p_coeffs;
 
+enum update_method {
+  UPDATE_CLEAR,
+  UPDATE_ADD,
+  UPDATE_RECALCULATE,
+};
+
 void set_colormap(igl::opengl::glfw::Viewer & viewer)
 {
   const int num_intervals = 30;
@@ -199,6 +205,11 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
   case '`':
     // Toggle texture visibility
     viewer.data().show_texture = !(viewer.data().show_texture);
+    break;
+
+  // Recalculate the distances
+  case 'r':
+    update(UPDATE_RECALCULATE);
     break;
   }
 
@@ -611,7 +622,7 @@ int main(int argc, char *argv[])
 
   igl::opengl::glfw::Viewer viewer;
   bool down_on_mesh = false;
-  const auto update = [&](bool is_add_source = false)->bool
+  const auto update = [&](update_method method = UPDATE_ADD)->bool
   {
     int fid;
     Eigen::Vector3f bc;
@@ -639,10 +650,12 @@ int main(int argc, char *argv[])
             (V_img.row(F_img(fid,2))-m3).squaredNorm()).minCoeff(&cid);
         const int vid = F_img(fid,cid);
         std::cout << "Source index: " << vid << std:: endl;
-        if (!is_add_source) {
+        if (method == UPDATE_CLEAR) {
           S.clear();
         }
-        S.push_back(vid);
+        if (method == UPDATE_ADD) {
+          S.push_back(vid);
+        }
         pmm_geodesics_solve(
           rows, cols,
           device_prop.maxGridSize[0],
