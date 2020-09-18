@@ -143,10 +143,112 @@ PerfCuda perfCuda;
 // PMMCoeffs<Scalar> coeffs;
 // Scalar *p_coeffs;
 
+// igl variables
+igl::opengl::glfw::Viewer viewer;
+bool down_on_mesh = false;
+
 enum update_method {
   UPDATE_CLEAR,
   UPDATE_ADD,
   UPDATE_RECALCULATE,
+};
+
+bool update(update_method method = UPDATE_ADD) {
+  int fid;
+  Eigen::Vector3f bc;
+  // Cast a ray in the view direction starting from the mouse position
+  double x = viewer.current_mouse_x;
+  double y = viewer.core().viewport(3) - viewer.current_mouse_y;
+  if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core().view,
+    viewer.core().proj, viewer.core().viewport, V_img, F_img, fid, bc))
+  {
+    TIMER_START("Running PMM");
+    Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> > &D = *m_D;
+    // if big mesh, just use closest vertex. Otherwise, blend distances to
+    // vertices of face using barycentric coordinates.
+    // if(F_img.rows()>100000)
+    {
+      // 3d position of hit
+      // const Eigen::RowVector3d m3 =
+      const Eigen::Matrix<Scalar, 1, 3> m3 =
+        V_img.row(F_img(fid,0))*bc(0) + V_img.row(F_img(fid,1))*bc(1) + V_img.row(F_img(fid,2))*bc(2);
+      int cid = 0;
+      // Eigen::Vector3d(
+      Eigen::Matrix<Scalar, 3, 1>(
+          (V_img.row(F_img(fid,0))-m3).squaredNorm(),
+          (V_img.row(F_img(fid,1))-m3).squaredNorm(),
+          (V_img.row(F_img(fid,2))-m3).squaredNorm()).minCoeff(&cid);
+      const int vid = F_img(fid,cid);
+      std::cout << "Source index: " << vid << std:: endl;
+      if (method == UPDATE_CLEAR) {
+        S.clear();
+      }
+      if (method == UPDATE_ADD) {
+        S.push_back(vid);
+      }
+      pmm_geodesics_solve(
+        rows, cols,
+        device_prop.maxGridSize[0],
+        device_prop.maxThreadsPerBlock,
+        device_prop.warpSize,
+        device_prop.sharedMemPerBlock,
+        cublasHandle,
+        d_C, d_C_pitch_bytes, d_C_pitch,
+        d_tex_V,
+        S,
+        p_D,
+        d_D, d_D_pitch_bytes, d_D_pitch,
+        N_iters, warp_num, pmm_omega
+      );
+    }
+    // else
+    // {
+    //   D = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>::Zero(V_img.rows());
+    //   for(int cid = 0;cid<3;cid++)
+    //   {
+    //     const int vid = F_img(fid,cid);
+    //     Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Dc;
+    //     pmm_geodesics_solve(data, V_img, F_img, (Eigen::VectorXi(1,1)<<vid).finished(), Dc, N_iters);
+    //     D += Dc*bc(cid);
+    //   }
+    // }
+    TIMER_END();
+    TIMER_START("Updating distances");
+    viewer.data().set_data(D.cast<double>());
+    TIMER_END();
+    #ifdef MATLAB_DEBUG
+      TIMER_START("Making a copy of the distance map");
+      GMMDenseColMatrix GMM_D_T(cols, rows);
+      for (size_t j = 0; j < rows; ++j) {
+        for (size_t i = 0; i < cols; ++i) {
+          GMM_D_T(i, j) = D(i + j * cols);
+        }
+      }
+      TIMER_END();
+      TIMER_START("Sending distance map to Matlab");
+      MatlabGMMDataExchange::SetEngineDenseMatrix("D_T", GMM_D_T);
+      TIMER_END();
+      TIMER_START("Transposing the distance map in Matlab");
+      MatlabInterface::GetEngine().EvalToCout(R"(D = D_T.';)");
+      TIMER_END();
+    #endif
+    #ifdef MATRIX_FILE
+      if (is_matrix_file) {
+        matrix_file.seekp(matrix_file_D_pos);
+        TIMER_START("Writing D matrix");
+        try {
+          bin_write_arr(matrix_file, D.data(), img_len);
+        } catch (const std::exception &e) {
+          TIMER_ERROR("Write to matrix file failed");
+          std::cerr << "Exception: " << e.what() << std::endl;
+          exit(EXIT_FAILURE);
+        }
+        TIMER_END_MSG(((std::stringstream&)(std::stringstream() << "Written " << img_len * sizeof(D.data()[0]) << " bytes")).str());
+      }
+    #endif
+    return true;
+  }
+  return false;
 };
 
 void set_colormap(igl::opengl::glfw::Viewer & viewer)
@@ -620,106 +722,6 @@ int main(int argc, char *argv[])
     }
   #endif
 
-  igl::opengl::glfw::Viewer viewer;
-  bool down_on_mesh = false;
-  const auto update = [&](update_method method = UPDATE_ADD)->bool
-  {
-    int fid;
-    Eigen::Vector3f bc;
-    // Cast a ray in the view direction starting from the mouse position
-    double x = viewer.current_mouse_x;
-    double y = viewer.core().viewport(3) - viewer.current_mouse_y;
-    if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core().view,
-      viewer.core().proj, viewer.core().viewport, V_img, F_img, fid, bc))
-    {
-      TIMER_START("Running PMM");
-      Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> > &D = *m_D;
-      // if big mesh, just use closest vertex. Otherwise, blend distances to
-      // vertices of face using barycentric coordinates.
-      // if(F_img.rows()>100000)
-      {
-        // 3d position of hit
-        // const Eigen::RowVector3d m3 =
-        const Eigen::Matrix<Scalar, 1, 3> m3 =
-          V_img.row(F_img(fid,0))*bc(0) + V_img.row(F_img(fid,1))*bc(1) + V_img.row(F_img(fid,2))*bc(2);
-        int cid = 0;
-        // Eigen::Vector3d(
-        Eigen::Matrix<Scalar, 3, 1>(
-            (V_img.row(F_img(fid,0))-m3).squaredNorm(),
-            (V_img.row(F_img(fid,1))-m3).squaredNorm(),
-            (V_img.row(F_img(fid,2))-m3).squaredNorm()).minCoeff(&cid);
-        const int vid = F_img(fid,cid);
-        std::cout << "Source index: " << vid << std:: endl;
-        if (method == UPDATE_CLEAR) {
-          S.clear();
-        }
-        if (method == UPDATE_ADD) {
-          S.push_back(vid);
-        }
-        pmm_geodesics_solve(
-          rows, cols,
-          device_prop.maxGridSize[0],
-          device_prop.maxThreadsPerBlock,
-          device_prop.warpSize,
-          device_prop.sharedMemPerBlock,
-          cublasHandle,
-          d_C, d_C_pitch_bytes, d_C_pitch,
-          d_tex_V,
-          S,
-          p_D,
-          d_D, d_D_pitch_bytes, d_D_pitch,
-          N_iters, warp_num, pmm_omega
-        );
-      }
-      // else
-      // {
-      //   D = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>::Zero(V_img.rows());
-      //   for(int cid = 0;cid<3;cid++)
-      //   {
-      //     const int vid = F_img(fid,cid);
-      //     Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Dc;
-      //     pmm_geodesics_solve(data, V_img, F_img, (Eigen::VectorXi(1,1)<<vid).finished(), Dc, N_iters);
-      //     D += Dc*bc(cid);
-      //   }
-      // }
-      TIMER_END();
-      TIMER_START("Updating distances");
-      viewer.data().set_data(D.cast<double>());
-      TIMER_END();
-      #ifdef MATLAB_DEBUG
-        TIMER_START("Making a copy of the distance map");
-        GMMDenseColMatrix GMM_D_T(cols, rows);
-        for (size_t j = 0; j < rows; ++j) {
-          for (size_t i = 0; i < cols; ++i) {
-            GMM_D_T(i, j) = D(i + j * cols);
-          }
-        }
-        TIMER_END();
-        TIMER_START("Sending distance map to Matlab");
-        MatlabGMMDataExchange::SetEngineDenseMatrix("D_T", GMM_D_T);
-        TIMER_END();
-        TIMER_START("Transposing the distance map in Matlab");
-        MatlabInterface::GetEngine().EvalToCout(R"(D = D_T.';)");
-        TIMER_END();
-      #endif
-      #ifdef MATRIX_FILE
-        if (is_matrix_file) {
-          matrix_file.seekp(matrix_file_D_pos);
-          TIMER_START("Writing D matrix");
-          try {
-            bin_write_arr(matrix_file, D.data(), img_len);
-          } catch (const std::exception &e) {
-            TIMER_ERROR("Write to matrix file failed");
-            std::cerr << "Exception: " << e.what() << std::endl;
-            exit(EXIT_FAILURE);
-          }
-          TIMER_END_MSG(((std::stringstream&)(std::stringstream() << "Written " << img_len * sizeof(D.data()[0]) << " bytes")).str());
-        }
-      #endif
-      return true;
-    }
-    return false;
-  };
   viewer.callback_mouse_down =
     [&](igl::opengl::glfw::Viewer& viewer, int, int)->bool
   {
