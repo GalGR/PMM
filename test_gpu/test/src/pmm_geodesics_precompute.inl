@@ -177,62 +177,10 @@ PMM_INLINE bool pmm_geodesics_precompute(
         return false;
     }
 
-    // Convert PMMGeodesicsData format to PMMCoeffs format
-    // for (size_t dir = 0; dir < 2; ++dir) {
-    //     for (size_t tri = 0; tri < 2; ++tri) {
-    //         coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_A_OFF].resize((rows - 1) * (cols - 1));
-    //         for (unsigned k = 0; k < 2; ++k) {
-    //             coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_B_OFF + k].resize((rows - 1) * (cols - 1));
-    //         }
-    //         for (unsigned k = 2; k < 4; ++k) {
-    //             coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_C_OFF + k].resize((rows - 1) * (cols - 1));
-    //         }
-    //         for (size_t i = 0; i < rows - 1; ++i) {
-    //             for (size_t j = 0; j < cols - 1; ++j) {
-    //                 // Copy from A to A
-    //                 coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_A_OFF][j + i * (cols - 1)] = data[dir][tri].a[j + i * (cols - 1)];
-    //                 // Copy from B to B
-    //                 for (unsigned k = 0; k < 2; ++k) {
-    //                     coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_B_OFF + k][j + i * (cols - 1)] = data[dir][tri].b[j + i * (cols - 1)].data()[k];
-    //                 }
-    //                 // Copy from C to C
-    //                 for (unsigned k = 0; k < 4; ++k) {
-    //                     coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_C_OFF + k][j + i * (cols - 1)] = data[dir][tri].c[j + i * (cols - 1)].data()[k];
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    // for (size_t dir = 2; dir < 4; ++dir) {
-    //     for (size_t tri = 0; tri < 2; ++tri) {
-    //         coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_A_OFF].resize((cols - 1) * (rows - 1));
-    //         for (unsigned k = 0; k < 2; ++k) {
-    //             coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_B_OFF + k].resize((cols - 1) * (rows - 1));
-    //         }
-    //         for (unsigned k = 2; k < 4; ++k) {
-    //             coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_C_OFF + k].resize((cols - 1) * (rows - 1));
-    //         }
-    //         for (size_t i = 0; i < cols - 1; ++i) {
-    //             for (size_t j = 0; j < rows - 1; ++j) {
-    //                 // Copy from A to A
-    //                 coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_A_OFF][j + i * (rows - 1)] = data[dir][tri].a[j + i * (rows - 1)];
-    //                 // Copy from B to B
-    //                 for (unsigned k = 0; k < 2; ++k) {
-    //                     coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_B_OFF + k][j + i * (rows - 1)] = data[dir][tri].b[j + i * (rows - 1)].data()[k];
-    //                 }
-    //                 // Copy from C to C
-    //                 for (unsigned k = 0; k < 4; ++k) {
-    //                     coeffs.arr[dir * PMM_DIR_SIZE + tri * PMM_TRI_SIZE + PMM_C_OFF + k][j + i * (rows - 1)] = data[dir][tri].c[j + i * (rows - 1)].data()[k];
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
     // Convert PMMGeodesicsData format to linear array as used in the kernel
     {
         unsigned dir = 0;
-        for (; dir < 2; ++dir) {
+        for (; dir < 2; ++dir) { // Upwards and Downwards
             size_t C_width = (cols - 1) * PMM_COEFF_PITCH;
             size_t C_pitch = C_width;
             C[dir].resize(C_pitch * (rows - 1) * 2);
@@ -246,10 +194,9 @@ PMM_INLINE bool pmm_geodesics_precompute(
                 }
             }
         }
-        for (; dir < 4; ++dir) {
+        for (; dir < 4; ++dir) { // Rightwards and Leftwards
             size_t C_pitch = (rows - 1) * PMM_COEFF_PITCH;
-            C[dir].resize(C_pitch * (cols - 1) * 2); // Rightwards
-            C[dir].resize(C_pitch * (cols - 1) * 2); // Leftwards
+            C[dir].resize(C_pitch * (cols - 1) * 2);
             for (unsigned tri = 0; tri < 2; ++tri) {
                 for (size_t x = 0; x < rows - 1; ++x) {
                     for (size_t y = 0; y < cols - 1; ++y) {
