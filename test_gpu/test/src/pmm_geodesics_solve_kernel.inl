@@ -20,17 +20,12 @@ __device__ Scalar solve_kernel(const Scalar3 x1, const Scalar3 x2, const Scalar2
     const Scalar x2_norm = sqrt(x2.x * x2.x + x2.y * x2.y + x2.z * x2.z);
     const Scalar d_dijkstra = fmin(d.x + x1_norm, d.y + x2_norm);
 
+    const bool cond_inf = isinf(d.x) || isinf(d.y);
     const bool cond_nan = isnan(d_quadratic);
     const bool cond_max = d_quadratic < fmax(d.x, d.y);
     const bool cond_monotonicity = (c4.x * (d.x - d_quadratic) + c4.z * (d.y - d_quadratic) > 0.0)
-                                 * (c4.y * (d.x - d_quadratic) + c4.w * (d.y - d_quadratic) > 0.0);
-    const bool cond = cond_nan || cond_max || cond_monotonicity;
-
-    #ifdef CUDA_DEBUG_PRINT
-        printf("SOLVE: gridDim %d, blockDim %d, block %d, thread %d: (x,y)=(%d,%d) cond=%d, d_dijkstra=%f, d_quadratic=%f, d_out=%f\n",
-        gridDim.x, blockDim.x, blockIdx.x, threadIdx.x, x, y,
-        cond, d_dijkstra, d_quadratic, cond ? d_dijkstra : d_quadratic);
-    #endif
+                                || (c4.y * (d.x - d_quadratic) + c4.w * (d.y - d_quadratic) > 0.0);
+    const bool cond = cond_nan || cond_max || cond_monotonicity || cond_inf;
 
     return cond ? d_dijkstra : d_quadratic;
 }

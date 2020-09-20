@@ -249,12 +249,12 @@ PMM_INLINE void pmm_geodesics_solve(
             size_t tile_width = std::min(numWarps * warpSize, (size_t)maxThreads);
             size_t tile_height = omega + 1;
             size_t tile_offset = omega; // Every tile is shifted by 'Omega' (= 'tile_height - 1') to the left
-            size_t overlap = 2 * tile_offset;
+            size_t overlap = std::max(2 * tile_offset, 2UL);
             size_t tile_eff_width = tile_width - overlap;
             size_t tile_eff_height = tile_height - 1;
             size_t tile_pitch = tile_width;
             size_t total_mem = tile_pitch * tile_height * sizeof(Scalar);
-            size_t num_tiles = std::min(((cols + tile_height - 2) + (tile_width - 2 * (tile_height - 2) - 1)) / (tile_width - 2 * (tile_height - 2)), (size_t)maxGridWidth);
+            size_t num_tiles = std::min(((cols + overlap) + (tile_eff_width - 1)) / tile_eff_width, (size_t)maxGridWidth);
             num_tiles = std::min(num_tiles, maxSharedMem / total_mem);
             // Define the dimensions
             dim3 blockDim(tile_width);
@@ -262,13 +262,15 @@ PMM_INLINE void pmm_geodesics_solve(
             // Record the start of the kernel
             checkCuda(cudaEventRecord(eventStart[0], stream[0]));
             // Execute the kernel
-            solve_upwards<<<gridDim, blockDim, total_mem, stream[0]>>>(
-                d_D[0], V, d_C[0],
-                tile_width, tile_height, tile_pitch,
-                tile_eff_width, tile_eff_height, tile_offset,
-                cols, rows,
-                d_D_pitch[0], d_C_pitch[0]
-            );
+            for (unsigned yoffset = 0; yoffset < rows - 1; yoffset += tile_eff_height) {
+                solve_upwards<<<gridDim, blockDim, total_mem, stream[0]>>>(
+                    d_D[0], V, d_C[0],
+                    tile_width, tile_height, tile_pitch,
+                    tile_eff_width, tile_eff_height, tile_offset, yoffset,
+                    cols, rows,
+                    d_D_pitch[0], d_C_pitch[0]
+                );
+            }
             // Record the end of the kernel
             checkCuda(cudaEventRecord(eventStop[0], stream[0]));
             // Record the start of the kernel

@@ -11,6 +11,7 @@
 #include <igl/opengl/create_shader_program.h>
 #include <igl/opengl/destroy_shader_program.h>
 #include <igl/PI.h>
+#include "glfw3.h"
 
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
@@ -158,6 +159,77 @@ enum update_method {
   UPDATE_RECALCULATE,
 };
 
+void pmm_update(update_method method = UPDATE_CLEAR, unsigned idx = 0) {
+  TIMER_START("Running PMM");
+  std::cout << "Source index: " << idx << std:: endl;
+  if (method == UPDATE_CLEAR) {
+    S.clear();
+  }
+  if (method == UPDATE_ADD) {
+    S.push_back(idx);
+  }
+  pmm_geodesics_solve(
+    rows, cols,
+    device_prop.maxGridSize[0],
+    device_prop.maxThreadsPerBlock,
+    device_prop.warpSize,
+    device_prop.sharedMemPerBlock,
+    cublasHandle,
+    d_C, d_C_pitch_bytes, d_C_pitch,
+    d_tex_V,
+    S,
+    p_D,
+    d_D, d_D_pitch_bytes, d_D_pitch,
+    N_iters, warp_num, pmm_omega
+  );
+    // else
+    // {
+    //   D = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>::Zero(V_img.rows());
+    //   for(int cid = 0;cid<3;cid++)
+    //   {
+    //     const int vid = F_img(fid,cid);
+    //     Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Dc;
+    //     pmm_geodesics_solve(data, V_img, F_img, (Eigen::VectorXi(1,1)<<vid).finished(), Dc, N_iters);
+    //     D += Dc*bc(cid);
+    //   }
+    // }
+  TIMER_END();
+  TIMER_START("Updating distances");
+  Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> > &D = *m_D;
+  viewer.data().set_data(D.cast<double>());
+  TIMER_END();
+  #ifdef MATLAB_DEBUG
+    TIMER_START("Making a copy of the distance map");
+    GMMDenseColMatrix GMM_D_T(cols, rows);
+    for (size_t j = 0; j < rows; ++j) {
+      for (size_t i = 0; i < cols; ++i) {
+        GMM_D_T(i, j) = D(i + j * cols);
+      }
+    }
+    TIMER_END();
+    TIMER_START("Sending distance map to Matlab");
+    MatlabGMMDataExchange::SetEngineDenseMatrix("D_T", GMM_D_T);
+    TIMER_END();
+    TIMER_START("Transposing the distance map in Matlab");
+    MatlabInterface::GetEngine().EvalToCout(R"(D = D_T.';)");
+    TIMER_END();
+  #endif
+  #ifdef MATRIX_FILE
+    if (is_matrix_file) {
+      matrix_file.seekp(matrix_file_D_pos);
+      TIMER_START("Writing D matrix");
+      try {
+        bin_write_arr(matrix_file, D.data(), img_len);
+      } catch (const std::exception &e) {
+        TIMER_ERROR("Write to matrix file failed");
+        std::cerr << "Exception: " << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      TIMER_END_MSG(((std::stringstream&)(std::stringstream() << "Written " << img_len * sizeof(D.data()[0]) << " bytes")).str());
+    }
+  #endif
+}
+
 bool update(update_method method = UPDATE_CLEAR) {
   int fid;
   Eigen::Vector3f bc;
@@ -167,8 +239,6 @@ bool update(update_method method = UPDATE_CLEAR) {
   if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core().view,
     viewer.core().proj, viewer.core().viewport, V_img, F_img, fid, bc))
   {
-    TIMER_START("Running PMM");
-    Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> > &D = *m_D;
     // if big mesh, just use closest vertex. Otherwise, blend distances to
     // vertices of face using barycentric coordinates.
     // if(F_img.rows()>100000)
@@ -184,27 +254,7 @@ bool update(update_method method = UPDATE_CLEAR) {
           (V_img.row(F_img(fid,1))-m3).squaredNorm(),
           (V_img.row(F_img(fid,2))-m3).squaredNorm()).minCoeff(&cid);
       const int vid = F_img(fid,cid);
-      std::cout << "Source index: " << vid << std:: endl;
-      if (method == UPDATE_CLEAR) {
-        S.clear();
-      }
-      if (method == UPDATE_ADD) {
-        S.push_back(vid);
-      }
-      pmm_geodesics_solve(
-        rows, cols,
-        device_prop.maxGridSize[0],
-        device_prop.maxThreadsPerBlock,
-        device_prop.warpSize,
-        device_prop.sharedMemPerBlock,
-        cublasHandle,
-        d_C, d_C_pitch_bytes, d_C_pitch,
-        d_tex_V,
-        S,
-        p_D,
-        d_D, d_D_pitch_bytes, d_D_pitch,
-        N_iters, warp_num, pmm_omega
-      );
+      pmm_update(method, vid);
     }
     // else
     // {
@@ -217,40 +267,6 @@ bool update(update_method method = UPDATE_CLEAR) {
     //     D += Dc*bc(cid);
     //   }
     // }
-    TIMER_END();
-    TIMER_START("Updating distances");
-    viewer.data().set_data(D.cast<double>());
-    TIMER_END();
-    #ifdef MATLAB_DEBUG
-      TIMER_START("Making a copy of the distance map");
-      GMMDenseColMatrix GMM_D_T(cols, rows);
-      for (size_t j = 0; j < rows; ++j) {
-        for (size_t i = 0; i < cols; ++i) {
-          GMM_D_T(i, j) = D(i + j * cols);
-        }
-      }
-      TIMER_END();
-      TIMER_START("Sending distance map to Matlab");
-      MatlabGMMDataExchange::SetEngineDenseMatrix("D_T", GMM_D_T);
-      TIMER_END();
-      TIMER_START("Transposing the distance map in Matlab");
-      MatlabInterface::GetEngine().EvalToCout(R"(D = D_T.';)");
-      TIMER_END();
-    #endif
-    #ifdef MATRIX_FILE
-      if (is_matrix_file) {
-        matrix_file.seekp(matrix_file_D_pos);
-        TIMER_START("Writing D matrix");
-        try {
-          bin_write_arr(matrix_file, D.data(), img_len);
-        } catch (const std::exception &e) {
-          TIMER_ERROR("Write to matrix file failed");
-          std::cerr << "Exception: " << e.what() << std::endl;
-          exit(EXIT_FAILURE);
-        }
-        TIMER_END_MSG(((std::stringstream&)(std::stringstream() << "Written " << img_len * sizeof(D.data()[0]) << " bytes")).str());
-      }
-    #endif
     return true;
   }
   return false;
@@ -315,8 +331,8 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
     break;
 
   // Recalculate the distances
-  case 'r':
-    update(UPDATE_RECALCULATE);
+  case 'R':
+    pmm_update(UPDATE_RECALCULATE);
     break;
   }
 
@@ -491,7 +507,7 @@ int main(int argc, char *argv[])
   }
 
   // Omega
-  if (pmm_omega < 1 || pmm_omega - 1 > (threads_num + (2 - 1)) / 2) {
+  if (pmm_omega < 1 || pmm_omega >= (threads_num + (2 - 1)) / 2) {
     std::cerr << "omega must be at least 1, and no bigger than ceil(threads / 2)" << std::endl;
     std::cout << desc << std::endl;
     exit(EXIT_FAILURE);

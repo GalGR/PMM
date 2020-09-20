@@ -233,15 +233,15 @@ PMM_INLINE bool pmm_geodesics_precompute(
     {
         unsigned dir = 0;
         for (; dir < 2; ++dir) {
-            size_t C_pitch = (cols - 1) * PMM_COEFF_PITCH;
-            C[dir].resize(C_pitch * (rows - 1) * 2); // Upwards
-            C[dir].resize(C_pitch * (rows - 1) * 2); // Downwards
+            size_t C_width = (cols - 1) * PMM_COEFF_PITCH;
+            size_t C_pitch = C_width;
+            C[dir].resize(C_pitch * (rows - 1) * 2);
             for (unsigned tri = 0; tri < 2; ++tri) {
                 for (size_t y = 0; y < rows - 1; ++y) {
                     for (size_t x = 0; x < cols - 1; ++x) {
-                        std::memcpy(&C[dir][(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + y * C_pitch * 2 + C_pitch * tri], &data[dir][tri].a[x + y * (cols - 1)],        PMM_A_SIZE * sizeof(Scalar));
-                        std::memcpy(&C[dir][(PMM_B_OFF + 0) + x * PMM_COEFF_PITCH + y * C_pitch * 2 + C_pitch * tri],  data[dir][tri].b[x + y * (cols - 1)].data(), PMM_B_SIZE * sizeof(Scalar));
-                        std::memcpy(&C[dir][(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH + y * C_pitch * 2 + C_pitch * tri],  data[dir][tri].c[x + y * (cols - 1)].data(), PMM_C_SIZE * sizeof(Scalar));
+                        std::memcpy(&C[dir][(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + (2 * y + tri) * C_pitch], &data[dir][tri].a[x + y * (cols - 1)],        PMM_A_SIZE * sizeof(Scalar));
+                        std::memcpy(&C[dir][(PMM_B_OFF + 0) + x * PMM_COEFF_PITCH + (2 * y + tri) * C_pitch],  data[dir][tri].b[x + y * (cols - 1)].data(), PMM_B_SIZE * sizeof(Scalar));
+                        std::memcpy(&C[dir][(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH + (2 * y + tri) * C_pitch],  data[dir][tri].c[x + y * (cols - 1)].data(), PMM_C_SIZE * sizeof(Scalar));
                     }
                 }
             }
@@ -253,9 +253,9 @@ PMM_INLINE bool pmm_geodesics_precompute(
             for (unsigned tri = 0; tri < 2; ++tri) {
                 for (size_t x = 0; x < rows - 1; ++x) {
                     for (size_t y = 0; y < cols - 1; ++y) {
-                        std::memcpy(&C[dir][(PMM_A_OFF + 0) + y * PMM_COEFF_PITCH + x * C_pitch * 2 + C_pitch * tri], &data[dir][tri].a[y + x * (rows - 1)],        PMM_A_SIZE * sizeof(Scalar));
-                        std::memcpy(&C[dir][(PMM_B_OFF + 0) + y * PMM_COEFF_PITCH + x * C_pitch * 2 + C_pitch * tri],  data[dir][tri].b[y + x * (rows - 1)].data(), PMM_B_SIZE * sizeof(Scalar));
-                        std::memcpy(&C[dir][(PMM_C_OFF + 0) + y * PMM_COEFF_PITCH + x * C_pitch * 2 + C_pitch * tri],  data[dir][tri].c[y + x * (rows - 1)].data(), PMM_C_SIZE * sizeof(Scalar));
+                        std::memcpy(&C[dir][(PMM_A_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch], &data[dir][tri].a[y + x * (rows - 1)],        PMM_A_SIZE * sizeof(Scalar));
+                        std::memcpy(&C[dir][(PMM_B_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch],  data[dir][tri].b[y + x * (rows - 1)].data(), PMM_B_SIZE * sizeof(Scalar));
+                        std::memcpy(&C[dir][(PMM_C_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch],  data[dir][tri].c[y + x * (rows - 1)].data(), PMM_C_SIZE * sizeof(Scalar));
                     }
                 }
             }
