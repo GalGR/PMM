@@ -121,6 +121,9 @@ IGL_INLINE void igl::find(
 
 #ifdef IGL_STATIC_LIBRARY
 // Explicit template instantiation
+// Added for PMM
+template void igl::find<float, Eigen::Matrix<int, -1, 1, 0, -1, 1>, Eigen::Matrix<int, -1, 1, 0, -1, 1>, Eigen::Matrix<double, -1, -1, 0, -1, -1> >(Eigen::SparseMatrix<float, 0, int> const&, Eigen::DenseBase<Eigen::Matrix<int, -1, 1, 0, -1, 1> >&, Eigen::DenseBase<Eigen::Matrix<int, -1, 1, 0, -1, 1> >&, Eigen::DenseBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> >&);
+template void igl::find<float, Eigen::Matrix<int, -1, 1, 0, -1, 1>, Eigen::Matrix<int, -1, 1, 0, -1, 1>, Eigen::Matrix<float, -1, 1, 0, -1, 1> >(Eigen::SparseMatrix<float, 0, int> const&, Eigen::DenseBase<Eigen::Matrix<int, -1, 1, 0, -1, 1> >&, Eigen::DenseBase<Eigen::Matrix<int, -1, 1, 0, -1, 1> >&, Eigen::DenseBase<Eigen::Matrix<float, -1, 1, 0, -1, 1> >&);
 
 template void igl::find<bool, Eigen::Matrix<int, -1, 1, 0, -1, 1>, Eigen::Matrix<int, -1, 1, 0, -1, 1>, Eigen::Array<bool, -1, 1, 0, -1, 1> >(Eigen::SparseMatrix<bool, 0, int> const&, Eigen::DenseBase<Eigen::Matrix<int, -1, 1, 0, -1, 1> >&, Eigen::DenseBase<Eigen::Matrix<int, -1, 1, 0, -1, 1> >&, Eigen::DenseBase<Eigen::Array<bool, -1, 1, 0, -1, 1> >&);
 template void igl::find<Eigen::Array<bool, -1, 1, 0, -1, 1>, Eigen::Matrix<int, -1, 1, 0, -1, 1> >(Eigen::DenseBase<Eigen::Array<bool, -1, 1, 0, -1, 1> > const&, Eigen::PlainObjectBase<Eigen::Matrix<int, -1, 1, 0, -1, 1> >&);

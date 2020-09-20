@@ -584,6 +584,9 @@ IGL_INLINE bool igl::min_quad_with_fixed(
 
 #ifdef IGL_STATIC_LIBRARY
 // Explicit template instantiation
+// Added for PMM
+template bool igl::min_quad_with_fixed_precompute<float, Eigen::Matrix<int, -1, 1, 0, -1, 1> >(Eigen::SparseMatrix<float, 0, int> const&, Eigen::MatrixBase<Eigen::Matrix<int, -1, 1, 0, -1, 1> > const&, Eigen::SparseMatrix<float, 0, int> const&, bool, igl::min_quad_with_fixed_data<float>&);
+template bool igl::min_quad_with_fixed_solve<float, Eigen::Matrix<float, -1, 1, 0, -1, 1>, Eigen::Matrix<float, -1, 1, 0, -1, 1>, Eigen::Matrix<float, -1, 1, 0, -1, 1>, Eigen::Matrix<float, -1, 1, 0, -1, 1> >(igl::min_quad_with_fixed_data<float> const&, Eigen::MatrixBase<Eigen::Matrix<float, -1, 1, 0, -1, 1> > const&, Eigen::MatrixBase<Eigen::Matrix<float, -1, 1, 0, -1, 1> > const&, Eigen::MatrixBase<Eigen::Matrix<float, -1, 1, 0, -1, 1> > const&, Eigen::PlainObjectBase<Eigen::Matrix<float, -1, 1, 0, -1, 1> >&);
 #if EIGEN_VERSION_AT_LEAST(3,3,0)
 #else
 template bool igl::min_quad_with_fixed_solve<double, Eigen::CwiseUnaryOp<Eigen::internal::scalar_multiple_op<double>, Eigen::Matrix<double, -1, 1, 0, -1, 1> const>, Eigen::Matrix<double, -1, 1, 0, -1, 1>, Eigen::Matrix<double, -1, 1, 0, -1, 1>, Eigen::Matrix<double, -1, 1, 0, -1, 1> >(igl::min_quad_with_fixed_data<double> const&, Eigen::MatrixBase<Eigen::CwiseUnaryOp<Eigen::internal::scalar_multiple_op<double>, Eigen::Matrix<double, -1, 1, 0, -1, 1> const> > const&, Eigen::MatrixBase<Eigen::Matrix<double, -1, 1, 0, -1, 1> > const&, Eigen::MatrixBase<Eigen::Matrix<double, -1, 1, 0, -1, 1> > const&, Eigen::PlainObjectBase<Eigen::Matrix<double, -1, 1, 0, -1, 1> >&);

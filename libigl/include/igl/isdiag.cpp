@@ -28,5 +28,8 @@ IGL_INLINE bool igl::isdiag(const Eigen::SparseCompressedBase<Derived> & A)
 
 #ifdef IGL_STATIC_LIBRARY
 // Explicit template instantiation
+// Added for PMM
+template bool igl::isdiag<Eigen::SparseMatrix<float, 0, int> >(Eigen::SparseCompressedBase<Eigen::SparseMatrix<float, 0, int> > const&);
+
 template bool igl::isdiag<Eigen::SparseMatrix<double,0,int>>(Eigen::SparseCompressedBase<Eigen::SparseMatrix<double,0,int>> const &);
 #endif

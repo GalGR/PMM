@@ -93,6 +93,8 @@ IGL_INLINE void igl::dihedral_angles_intrinsic(
 }
 #ifdef IGL_STATIC_LIBRARY
 // Explicit template instantiation
+// Added for PMM
+template void igl::dihedral_angles_intrinsic<Eigen::Matrix<float, -1, 6, 0, -1, 6>, Eigen::Matrix<float, -1, 4, 0, -1, 4>, Eigen::Matrix<float, -1, 6, 0, -1, 6>, Eigen::Matrix<float, -1, 6, 0, -1, 6> >(Eigen::MatrixBase<Eigen::Matrix<float, -1, 6, 0, -1, 6> > const&, Eigen::MatrixBase<Eigen::Matrix<float, -1, 4, 0, -1, 4> > const&, Eigen::PlainObjectBase<Eigen::Matrix<float, -1, 6, 0, -1, 6> >&, Eigen::PlainObjectBase<Eigen::Matrix<float, -1, 6, 0, -1, 6> >&);
 template void igl::dihedral_angles_intrinsic< Eigen::Matrix<double, -1, 6, 0, -1, 6>, Eigen::Matrix<double, -1, 4, 0, -1, 4>, Eigen::Matrix<double, -1, 6, 0, -1, 6>, Eigen::Matrix<double, -1, 6, 0, -1, 6> >(const Eigen::MatrixBase<Eigen::Matrix<double, -1, 6, 0, -1, 6> >&, const Eigen::MatrixBase<Eigen::Matrix<double, -1, 4, 0, -1, 4> >&, Eigen::PlainObjectBase<Eigen::Matrix<double, -1, 6, 0, -1, 6> >&, Eigen::PlainObjectBase<Eigen::Matrix<double, -1, 6, 0, -1, 6> >&);
 template void igl::dihedral_angles<Eigen::Matrix<double, -1, -1, 0, -1, -1>, Eigen::Matrix<int, -1, -1, 0, -1, -1>, Eigen::Matrix<double, -1, -1, 0, -1, -1>, Eigen::Matrix<double, -1, -1, 0, -1, -1> >(Eigen::MatrixBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> > const&, Eigen::MatrixBase<Eigen::Matrix<int, -1, -1, 0, -1, -1> > const&, Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> >&, Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1> >&);
 #endif
