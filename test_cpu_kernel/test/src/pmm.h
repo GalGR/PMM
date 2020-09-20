@@ -7,6 +7,6 @@
 #define PMM_INLINE
 #endif
 
-#include "pmm_geodesics.cuh"
+#include "pmm_geodesics.h"
 
 #endif
