@@ -1,13 +1,10 @@
 #pragma once
 
 __device__ Scalar solve_kernel(const Scalar3 x1, const Scalar3 x2, const Scalar2 d, const Scalar a, const Scalar2 b2, const Scalar4 c4
-#ifdef CUDA_DEBUG_PRINT
-    , const unsigned x, const unsigned y
-#endif
 ) {
     // The Scalar 2 b is a row vector
     // The Scalar 4 c is a col major 2x2 matrix
-    const Scalar b = -2.0 * b2.x * d.x + b2.y * d.y;
+    const Scalar b = -2.0 * (b2.x * d.x + b2.y * d.y);
     const Scalar c = -1.0 + (c4.x * d.x + c4.y * d.y) * d.x + (c4.z * d.x + c4.w * d.y) * d.y;
 
     const Scalar a_2 = 2.0 * a;

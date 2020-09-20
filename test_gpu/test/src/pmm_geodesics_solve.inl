@@ -221,16 +221,6 @@ PMM_INLINE void pmm_geodesics_solve(
         p_D[S[s]] = 0.0;
     }
 
-    #ifdef CUDA_DEBUG_PRINT
-        std::cout << std::endl;
-        for (size_t y = 0; y < rows; ++y) {
-            for (size_t x = 0; x < cols; ++x) {
-                std::cout << "START: (x,y)=(" << x << "," << y << "), D(" << y << "," << x << ")=" << p_D[x + y * cols] << std::endl;
-            }
-        }
-        std::cout << std::endl;
-    #endif
-
     // Copy D to the device
     checkCuda(cudaMemcpy2D(d_D[0], d_D_pitch_bytes[0], p_D, cols * sizeof(Scalar), cols * sizeof(Scalar), rows, cudaMemcpyHostToDevice));
 
@@ -341,14 +331,4 @@ PMM_INLINE void pmm_geodesics_solve(
             p_D[i] = 0.0;
         }
     }
-
-    #ifdef CUDA_DEBUG_PRINT
-        std::cout << std::endl;
-        for (size_t y = 0; y < rows; ++y) {
-            for (size_t x = 0; x < cols; ++x) {
-                std::cout << "END: (x,y)=(" << x << "," << y << "), D(" << y << "," << x << ")=" << p_D[x + y * cols] << std::endl;
-            }
-        }
-        std::cout << std::endl;
-    #endif
 }
