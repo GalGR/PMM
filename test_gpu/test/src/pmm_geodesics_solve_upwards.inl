@@ -66,7 +66,7 @@ __global__ void solve_upwards(
         }
         // Copy for each tile, 'd_shared' to global memory 'D'
         for (unsigned i = 1; i < tile_height && x < width; ++i) {
-                if (y + i < height && threadIdx.x >= i && threadIdx.x < i + tile_eff_width) {
+            if (y + i < height && threadIdx.x >= i && threadIdx.x < i + tile_eff_width) {
                 D[x + (y + i) * D_pitch] = d_shared[threadIdx.x + i * tile_pitch];
             }
         }
