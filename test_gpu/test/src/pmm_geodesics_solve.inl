@@ -21,8 +21,11 @@ enum PMMCudaStreams {
 
 #include "pmm_geodesics_solve_upwards.inl"
 #include "pmm_geodesics_solve_downwards.inl"
-// #include "pmm_geodesics_solve_rightwards.inl"
-// #include "pmm_geodesics_solve_leftwards.inl"
+#include "pmm_geodesics_solve_rightwards.inl"
+#include "pmm_geodesics_solve_leftwards.inl"
+
+#define BLOCK_DIM 32
+#include "pmm_geodesics_solve_transpose.inl"
 
 template <typename Scalar>
 PMM_INLINE void pmm_geodesics_solve(
@@ -235,6 +238,7 @@ PMM_INLINE void pmm_geodesics_solve(
             checkCuda(cudaStreamCreate(&stream[i]));
         }
 
+        // Upwards and downwards kernels
         {
             size_t tile_width = std::min(numWarps * warpSize, (size_t)maxThreads);
             size_t tile_height = omega + 1;
@@ -252,11 +256,11 @@ PMM_INLINE void pmm_geodesics_solve(
             // Record the start of the kernel
             checkCuda(cudaEventRecord(eventStart[0], stream[0]));
             // Execute the kernel
-            for (unsigned yoffset = 0; yoffset < rows - 1; yoffset += tile_eff_height) {
-                solve_upwards<<<gridDim, blockDim, total_mem, stream[0]>>>(
+            for (unsigned offset = 0; offset < rows - 1; offset += tile_eff_height) {
+                solve_upwards<<<gridDim, blockDim, total_mem/*, stream[0]*/>>>(
                     d_D[0], V, d_C[0],
                     tile_width, tile_height, tile_pitch,
-                    tile_eff_width, tile_eff_height, tile_offset, yoffset,
+                    tile_eff_width, tile_eff_height, tile_offset, offset,
                     cols, rows,
                     d_D_pitch[0], d_C_pitch[0]
                 );
@@ -266,13 +270,15 @@ PMM_INLINE void pmm_geodesics_solve(
             // Record the start of the kernel
             checkCuda(cudaEventRecord(eventStart[1], stream[1]));
             // Execute the kernel
-            // solve_downwards<<<gridDim, blockDim, total_mem, stream[1]>>>(
-            //     d_D[0], V, d_C[1],
-            //     tile_width, tile_height, tile_pitch,
-            //     tile_eff_width, tile_eff_height, tile_offset,
-            //     cols, rows,
-            //     d_D_pitch[0], d_C_pitch[1]
-            // );
+            for (unsigned offset = 0; offset < rows - 1; offset += tile_eff_height) {
+                solve_downwards<<<gridDim, blockDim, total_mem/*, stream[1]*/>>>(
+                    d_D[0], V, d_C[1],
+                    tile_width, tile_height, tile_pitch,
+                    tile_eff_width, tile_eff_height, tile_offset, offset,
+                    cols, rows,
+                    d_D_pitch[0], d_C_pitch[1]
+                );
+            }
             // Record the end of the kernel
             checkCuda(cudaEventRecord(eventStop[1], stream[1]));
         }
@@ -281,54 +287,71 @@ PMM_INLINE void pmm_geodesics_solve(
         checkCuda(cudaEventSynchronize(eventStop[1]));
         // Copy transpose d_D[0] to d_D[1]
         {
-            Scalar alpha = 1.0;
-            Scalar beta = 0.0;
-            cublasStatus_t stat = cublasScalargeam(cublasHandle, CUBLAS_OP_T, CUBLAS_OP_T, rows, cols, &alpha, d_D[0], cols, &beta, d_D[0], cols, d_D[1], rows);
-            if (stat != CUBLAS_STATUS_SUCCESS) {
-                std::cerr << "Error: CUBLAS transpose from row major to column major failed" << std::endl;
-                exit(1);
-            }
+            dim3 blockDim(BLOCK_DIM, BLOCK_DIM);
+            dim3 gridDim(
+                (cols + BLOCK_DIM - 1) / BLOCK_DIM,
+                (rows + BLOCK_DIM - 1) / BLOCK_DIM
+            );
+            transpose_kernel<<<gridDim, blockDim>>>(d_D[1], d_D_pitch[1], d_D[0], d_D_pitch[0], cols, rows);
         }
+        // Rightwards and leftwards kernels
         {
-            // size_t tile_width = std::min(numWarps * warpSize, (size_t)maxThreads);
-            // size_t tile_height = omega + 1;
-            // size_t tile_offset = omega - 1;
-            // size_t tile_eff_width = tile_width - 2 * tile_offset;
-            // size_t tile_eff_height = tile_height - 1;
-            // size_t tile_pitch = tile_width;
-            // size_t total_mem = tile_pitch * tile_height * sizeof(Scalar);
-            // size_t num_tiles = std::min(((cols + tile_height - 2) + (tile_width - 2 * (tile_height - 2) - 1)) / (tile_width - 2 * (tile_height - 2)), (size_t)maxGridWidth);
-            // num_tiles = std::min(num_tiles, maxSharedMem / total_mem);
-            // // Define the dimensions
-            // dim3 blockDim(tile_width);
-            // dim3 gridDim(num_tiles);
-            // // Rightwards and leftwards (column major)
-            // solve_rightwards();
-            // solve_leftwards();
-            // // Wait for the kernels to finish
-            // checkCuda(cudaEventSynchronize(rightwardsEvent));
-            // checkCuda(cudaEventSynchronize(leftwardsEvent));
+            size_t tile_width = std::min(numWarps * warpSize, (size_t)maxThreads);
+            size_t tile_height = omega + 1;
+            size_t tile_offset = omega; // Every tile is shifted by 'Omega' (= 'tile_height - 1') to the left
+            size_t overlap = std::max(2 * tile_offset, 2UL);
+            size_t tile_eff_width = tile_width - overlap;
+            size_t tile_eff_height = tile_height - 1;
+            size_t tile_pitch = tile_width;
+            size_t total_mem = tile_pitch * tile_height * sizeof(Scalar);
+            size_t num_tiles = std::min(((rows + overlap) + (tile_eff_width - 1)) / tile_eff_width, (size_t)maxGridWidth);
+            num_tiles = std::min(num_tiles, maxSharedMem / total_mem);
+            // Define the dimensions
+            dim3 blockDim(tile_width);
+            dim3 gridDim(num_tiles);
+            // Record the start of the kernel
+            checkCuda(cudaEventRecord(eventStart[2], stream[2]));
+            // Execute the kernel
+            for (unsigned offset = 0; offset < cols - 1; offset += tile_eff_height) {
+                solve_rightwards<<<gridDim, blockDim, total_mem/*, stream[2]*/>>>(
+                    d_D[1], V, d_C[2],
+                    tile_width, tile_height, tile_pitch,
+                    tile_eff_width, tile_eff_height, tile_offset, offset,
+                    rows, cols,
+                    d_D_pitch[1], d_C_pitch[2]
+                );
+            }
+            // Record the end of the kernel
+            checkCuda(cudaEventRecord(eventStop[2], stream[2]));
+            // Record the start of the kernel
+            checkCuda(cudaEventRecord(eventStart[3], stream[3]));
+            // Execute the kernel
+            for (unsigned offset = 0; offset < cols - 1; offset += tile_eff_height) {
+                solve_leftwards<<<gridDim, blockDim, total_mem/*, stream[3]*/>>>(
+                    d_D[1], V, d_C[3],
+                    tile_width, tile_height, tile_pitch,
+                    tile_eff_width, tile_eff_height, tile_offset, offset,
+                    rows, cols,
+                    d_D_pitch[1], d_C_pitch[3]
+                );
+            }
+            // Record the end of the kernel
+            checkCuda(cudaEventRecord(eventStop[3], stream[3]));
         }
+        // Wait for the kernels to finish
+        checkCuda(cudaEventSynchronize(eventStop[2]));
+        checkCuda(cudaEventSynchronize(eventStop[3]));
         // Copy transpose d_D[1] to d_D[0]
         {
-            Scalar alpha = 1.0;
-            Scalar beta = 0.0;
-            cublasStatus_t stat = cublasScalargeam(cublasHandle, CUBLAS_OP_T, CUBLAS_OP_T, cols, rows, &alpha, d_D[1], rows, &beta, d_D[1], rows, d_D[0], cols);
-            if (stat != CUBLAS_STATUS_SUCCESS) {
-                std::cerr << "Error: CUBLAS transpose from row major to column major failed" << std::endl;
-                exit(1);
-            }
+            dim3 blockDim(BLOCK_DIM, BLOCK_DIM);
+            dim3 gridDim(
+                (rows + BLOCK_DIM - 1) / BLOCK_DIM,
+                (cols + BLOCK_DIM - 1) / BLOCK_DIM
+            );
+            transpose_kernel<<<gridDim, blockDim>>>(d_D[0], d_D_pitch[0], d_D[1], d_D_pitch[1], rows, cols);
         }
     }
 
     // Copy D from the device
     checkCuda(cudaMemcpy2D(p_D, cols * sizeof(Scalar), d_D[0], d_D_pitch_bytes[0], cols * sizeof(Scalar), rows, cudaMemcpyDeviceToHost));
-
-    // DEBUG TEST: replace infinity with 0
-    // D = (D.array() == std::numeric_limits<Scalar>::infinity()).select(-1.0, D);
-    for (size_t i = 0; i < cols * rows; ++i) {
-        if (p_D[i] == std::numeric_limits<Scalar>::infinity()) {
-            p_D[i] = 0.0;
-        }
-    }
 }

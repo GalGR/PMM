@@ -198,8 +198,8 @@ PMM_INLINE bool pmm_geodesics_precompute(
             size_t C_pitch = (rows - 1) * PMM_COEFF_PITCH;
             C[dir].resize(C_pitch * (cols - 1) * 2);
             for (unsigned tri = 0; tri < 2; ++tri) {
-                for (size_t x = 0; x < rows - 1; ++x) {
-                    for (size_t y = 0; y < cols - 1; ++y) {
+                for (size_t x = 0; x < cols - 1; ++x) {
+                    for (size_t y = 0; y < rows - 1; ++y) {
                         std::memcpy(&C[dir][(PMM_A_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch], &data[dir][tri].a[y + x * (rows - 1)],        PMM_A_SIZE * sizeof(Scalar));
                         std::memcpy(&C[dir][(PMM_B_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch],  data[dir][tri].b[y + x * (rows - 1)].data(), PMM_B_SIZE * sizeof(Scalar));
                         std::memcpy(&C[dir][(PMM_C_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch],  data[dir][tri].c[y + x * (rows - 1)].data(), PMM_C_SIZE * sizeof(Scalar));
