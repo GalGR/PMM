@@ -141,6 +141,7 @@ cudaDeviceProp device_prop;
 // Timers
 PerfUtil perfUtil;
 PerfCuda perfCuda;
+plf::nanotimer down_on_mesh_timer;
 
 // 56 Arrays = 4 Directions * 2 Triangles * (1 Float (a) + 2 Floats (b) + 4 Floats (c))
 // Example: Height = 1024, Width = 1024, Scalar = float
@@ -165,7 +166,7 @@ void pmm_update(update_method method = UPDATE_CLEAR, unsigned idx = 0) {
   if (method == UPDATE_CLEAR) {
     S.clear();
   }
-  if (method == UPDATE_ADD) {
+  if (method != UPDATE_RECALCULATE) {
     S.push_back(idx);
   }
   pmm_geodesics_solve(
@@ -741,29 +742,40 @@ int main(int argc, char *argv[])
   viewer.callback_mouse_down =
     [](igl::opengl::glfw::Viewer& viewer, int bttn, int mod)->bool
   {
-    if (bttn == GLFW_MOUSE_BUTTON_LEFT && (mod == GLFW_MOD_CONTROL || mod == GLFW_MOD_SHIFT)) {
+    if (bttn == GLFW_MOUSE_BUTTON_LEFT && ((mod & GLFW_MOD_CONTROL) || (mod & GLFW_MOD_SHIFT))) {
       update_method method;
-      if (mod == GLFW_MOD_CONTROL) {
+      if (mod & GLFW_MOD_CONTROL) {
         method = UPDATE_CLEAR;
       }
-      if (mod == GLFW_MOD_SHIFT) {
+      if (mod & GLFW_MOD_SHIFT) {
         method = UPDATE_ADD;
       }
       if(update(method))
       {
         down_on_mesh = true;
+        down_on_mesh_timer.start();
         return true;
       }
     }
     return false;
   };
   viewer.callback_mouse_move =
-    [](igl::opengl::glfw::Viewer& viewer, int, int)->bool
+    [](igl::opengl::glfw::Viewer& viewer, int, int mod)->bool
     {
-      if(down_on_mesh)
+      double ms = down_on_mesh_timer.get_elapsed_ms();
+      if(ms >= 10.0 && down_on_mesh && ((mod & GLFW_MOD_CONTROL) || (mod & GLFW_MOD_SHIFT)))
       {
-        // update();
-        return true;
+        update_method method;
+        if (mod & GLFW_MOD_CONTROL) {
+          method = UPDATE_CLEAR;
+        }
+        if (mod & GLFW_MOD_SHIFT) {
+          method = UPDATE_ADD;
+        }
+        if (update(method)) {
+          down_on_mesh_timer.start();
+          return true;
+        }
       }
       return false;
     };
