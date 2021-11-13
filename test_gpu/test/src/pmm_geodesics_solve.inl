@@ -243,7 +243,7 @@ PMM_INLINE void pmm_geodesics_solve(
             size_t tile_width = std::min(numWarps * warpSize, (size_t)maxThreads);
             size_t tile_height = omega + 1;
             size_t tile_offset = omega; // Every tile is shifted by 'Omega' (= 'tile_height - 1') to the left
-            size_t overlap = std::max(2 * tile_offset, 2UL);
+            size_t overlap = std::max(2 * tile_offset, (std::size_t)2UL);
             size_t tile_eff_width = tile_width - overlap;
             size_t tile_eff_height = tile_height - 1;
             size_t tile_pitch = tile_width;
@@ -299,7 +299,7 @@ PMM_INLINE void pmm_geodesics_solve(
             size_t tile_width = std::min(numWarps * warpSize, (size_t)maxThreads);
             size_t tile_height = omega + 1;
             size_t tile_offset = omega; // Every tile is shifted by 'Omega' (= 'tile_height - 1') to the left
-            size_t overlap = std::max(2 * tile_offset, 2UL);
+            size_t overlap = std::max(2 * tile_offset, (std::size_t)2UL);
             size_t tile_eff_width = tile_width - overlap;
             size_t tile_eff_height = tile_height - 1;
             size_t tile_pitch = tile_width;

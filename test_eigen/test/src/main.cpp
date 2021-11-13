@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     std::cout << new_row_major_arr << std::endl;
     std::cout << STRINGIZE(row_major) << std::endl;
     std::cout << row_major << std::endl;
-    row_major.setConstant(1.0 / 0.0);
+    row_major.setConstant(NAN);
     std::cout << STRINGIZE(row_major.setConstant(1.0 / 0.0)) << std::endl;
     std::cout << STRINGIZE(row_major) ":" << std::endl;
     std::cout << row_major << std::endl;

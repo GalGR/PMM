@@ -101,7 +101,7 @@ PMM_INLINE void pmm_geodesics_solve(
             if (monotonicity_cond) {
                 return solve_dijkstra(x1, x2, d1, d2);
             }
-            assert(!(std::isnan(d0) || d0 == 1.0 / 0.0 && (d1 != 1.0 / 0.0 || d2 != 1.0 / 0.0)));
+            assert(!(std::isnan(d0) || (std::isinf(d0) && d0 > 0.0) && (!(std::isinf(d1) && d1 > 0.0)|| !(std::isinf(d2) && d2 > 0.0))));
             // std::cout << "triangle = [(" << is[0] << "," << js[0] << "),(" << is[1] << "," << js[1] << "),(" << is[2] << "," << js[2] << ")], d0 = " << d0 << std::endl;
             // std::cout << "t";
             return d0;
