@@ -83,16 +83,21 @@ plf::nanotimer timer;
 
 void set_colormap(igl::opengl::glfw::Viewer & viewer)
 {
+  // Original code generated bright-red to dark-red colormap
+  // const int num_intervals = 30;
+  // Eigen::MatrixXd CM(num_intervals,3);
+  // // Colormap texture
+  // for(int i = 0;i<num_intervals;i++)
+  // {
+  //   double t = double(num_intervals - i - 1)/double(num_intervals-1);
+  //   CM(i,0) = std::max(std::min(2.0*t-0.0,1.0),0.0);
+  //   CM(i,1) = std::max(std::min(2.0*t-1.0,1.0),0.0);
+  //   CM(i,2) = std::max(std::min(6.0*t-5.0,1.0),0.0);
+  // }
+  // Switched to Matlab's Jet colormap
   const int num_intervals = 30;
   Eigen::MatrixXd CM(num_intervals,3);
-  // Colormap texture
-  for(int i = 0;i<num_intervals;i++)
-  {
-    double t = double(num_intervals - i - 1)/double(num_intervals-1);
-    CM(i,0) = std::max(std::min(2.0*t-0.0,1.0),0.0);
-    CM(i,1) = std::max(std::min(2.0*t-1.0,1.0),0.0);
-    CM(i,2) = std::max(std::min(6.0*t-5.0,1.0),0.0);
-  }
+  igl::colormap(igl::COLOR_MAP_TYPE_JET,Eigen::VectorXd::LinSpaced(num_intervals,0,1).eval(),1,0,CM);
   igl::isolines_map(Eigen::MatrixXd(CM),CM);
   viewer.data().set_colormap(CM);
 }
