@@ -51,7 +51,7 @@ endfunction()
 function(igl_download_comiso)
 	igl_download_project(CoMISo
 		GIT_REPOSITORY https://github.com/libigl/CoMISo.git
-		GIT_TAG        1f9618cf9b7bd77370d817976470d59091928606
+		GIT_TAG        d60aa4759fba76b0b793b1efb090b7a771dd7c56
 	)
 endfunction()
 
@@ -67,7 +67,7 @@ endfunction()
 set(LIBIGL_EIGEN_VERSION 3.3.7 CACHE STRING "Default version of Eigen used by libigl.")
 function(igl_download_eigen)
 	igl_download_project(eigen
-		GIT_REPOSITORY https://github.com/eigenteam/eigen-git-mirror.git
+		GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
 		GIT_TAG        ${LIBIGL_EIGEN_VERSION}
 		${LIBIGL_BRANCH_OPTIONS}
 	)
@@ -77,7 +77,7 @@ endfunction()
 function(igl_download_embree)
 	igl_download_project(embree
 		GIT_REPOSITORY https://github.com/embree/embree.git
-		GIT_TAG        v3.5.2
+		GIT_TAG        v3.12.1
 		${LIBIGL_BRANCH_OPTIONS}
 	)
 endfunction()
@@ -94,7 +94,7 @@ endfunction()
 function(igl_download_glfw)
 	igl_download_project(glfw
 		GIT_REPOSITORY https://github.com/glfw/glfw.git
-		GIT_TAG        3.3
+		GIT_TAG        3327050ca66ad34426a82c217c2d60ced61526b7
 		${LIBIGL_BRANCH_OPTIONS}
 	)
 endfunction()
@@ -103,12 +103,21 @@ endfunction()
 function(igl_download_imgui)
 	igl_download_project(imgui
 		GIT_REPOSITORY https://github.com/ocornut/imgui.git
-		GIT_TAG        v1.76
+		GIT_TAG        61b19489f1ba35934d9114c034b24eb5bff149e7 # 1.81 + patch for #1669
 		${LIBIGL_BRANCH_OPTIONS}
 	)
 	igl_download_project(libigl-imgui
 		GIT_REPOSITORY https://github.com/libigl/libigl-imgui.git
-		GIT_TAG        99f0643089b19f6daf5b3efd9544a65c9a851966
+		GIT_TAG        7e1053e750b0f4c129b046f4e455243cb7f804f3
+	)
+endfunction()
+
+## ImGuizmo
+function(igl_download_imguizmo)
+	igl_download_project(imguizmo
+		GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
+		GIT_TAG        a23567269f6617342bcc112394bdad937b54b2d7
+		${LIBIGL_BRANCH_OPTIONS}
 	)
 endfunction()
 
@@ -131,8 +140,8 @@ endfunction()
 ## TetGen
 function(igl_download_tetgen)
 	igl_download_project(tetgen
-		GIT_REPOSITORY https://github.com/jdumas/tetgen.git
-		GIT_TAG        c63e7a6434652b8a2065c835bd9d6d298db1a0bc
+		GIT_REPOSITORY https://github.com/libigl/tetgen.git
+		GIT_TAG        4f3bfba3997f20aa1f96cfaff604313a8c2c85b6
 	)
 endfunction()
 
@@ -148,7 +157,7 @@ endfunction()
 function(igl_download_triangle)
 	igl_download_project(triangle
 		GIT_REPOSITORY https://github.com/libigl/triangle.git
-		GIT_TAG        d284c4a843efac043c310f5fa640b17cf7d96170
+		GIT_TAG        3ee6cac2230f0fe1413879574f741c7b6da11221
 	)
 endfunction()
 
@@ -164,7 +173,7 @@ endfunction()
 function(igl_download_predicates)
 	igl_download_project(predicates
 		GIT_REPOSITORY https://github.com/libigl/libigl-predicates.git
-		GIT_TAG        5a1d2194ec114bff51d5a33230586cafb83adc86
+		GIT_TAG        488242fa2b1f98a9c5bd1441297fb4a99a6a9ae4
 	)
 endfunction()
 
@@ -175,7 +184,7 @@ function(igl_download_test_data)
 	igl_download_project_aux(test_data
 		"${LIBIGL_EXTERNAL}/../tests/data"
 		GIT_REPOSITORY https://github.com/libigl/libigl-tests-data
-		GIT_TAG        b5dddf45e329af685cd107e38770a28cfc18eb15
+		GIT_TAG        19cedf96d70702d8b3a83eb27934780c542356fe
 	)
 endfunction()
 
@@ -184,7 +193,6 @@ function(igl_download_tutorial_data)
 	igl_download_project_aux(tutorial_data
 		"${LIBIGL_EXTERNAL}/../tutorial/data"
 		GIT_REPOSITORY https://github.com/libigl/libigl-tutorial-data
-		GIT_TAG        fb5fa00bc4ede64b36002d703ce541552370b6e9
+		GIT_TAG        c1f9ede366d02e3531ecbaec5e3769312f31cccd
 	)
 endfunction()
-

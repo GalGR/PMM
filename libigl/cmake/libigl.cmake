@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.8)
 
 # https://github.com/libigl/libigl/issues/751
 # http://lists.llvm.org/pipermail/llvm-commits/Week-of-Mon-20160425/351643.html
@@ -84,7 +84,7 @@ target_compile_features(igl_common INTERFACE ${CXX11_FEATURES})
 # Other compilation flags
 if(MSVC)
   # Enable parallel compilation for Visual Studio
-  target_compile_options(igl_common INTERFACE /MP /bigobj)
+  target_compile_options(igl_common INTERFACE $<$<COMPILE_LANGUAGE:CXX>:/MP> $<$<COMPILE_LANGUAGE:CXX>:/bigobj>)
   target_compile_definitions(igl_common INTERFACE -DNOMINMAX)
 endif()
 
@@ -301,11 +301,12 @@ if(LIBIGL_WITH_EMBREE)
   if(NOT TARGET embree)
     igl_download_embree()
 
+    # Note: On macOS, building embree as a static lib can only be done with a single ISA target.
+    set(EMBREE_MAX_ISA "DEFAULT" CACHE STRING "Selects highest ISA to support.")
     set(EMBREE_TESTING_INTENSITY 0 CACHE STRING "")
     set(EMBREE_ISPC_SUPPORT OFF CACHE BOOL " ")
     set(EMBREE_TASKING_SYSTEM "INTERNAL" CACHE BOOL " ")
     set(EMBREE_TUTORIALS OFF CACHE BOOL " ")
-    set(EMBREE_MAX_ISA "SSE2" CACHE STRING " ")
     set(EMBREE_STATIC_LIB ON CACHE BOOL " ")
     if(MSVC)
       set(EMBREE_STATIC_RUNTIME ${IGL_STATIC_RUNTIME} CACHE BOOL "Use the static version of the C/C++ runtime library.")
@@ -349,12 +350,11 @@ if(LIBIGL_WITH_OPENGL)
   if (NOT CMAKE_VERSION VERSION_LESS "3.11")
     cmake_policy(SET CMP0072 NEW)
   endif()
-  find_package(OpenGL REQUIRED)
-  if(TARGET OpenGL::GL)
-    target_link_libraries(igl_opengl ${IGL_SCOPE} OpenGL::GL)
+  find_package(OpenGL REQUIRED OPTIONAL_COMPONENTS OpenGL)
+  if(TARGET OpenGL::OpenGL)
+    target_link_libraries(igl_opengl ${IGL_SCOPE} OpenGL::OpenGL)
   else()
-    target_link_libraries(igl_opengl ${IGL_SCOPE} ${OPENGL_gl_LIBRARY})
-    target_include_directories(igl_opengl SYSTEM ${IGL_SCOPE} ${OPENGL_INCLUDE_DIR})
+    target_link_libraries(igl_opengl ${IGL_SCOPE} OpenGL::GL)
   endif()
 
   # glad module
@@ -398,7 +398,13 @@ if(LIBIGL_WITH_OPENGL_GLFW_IMGUI)
       igl_download_imgui()
       add_subdirectory(${LIBIGL_EXTERNAL}/libigl-imgui imgui)
     endif()
-    target_link_libraries(igl_opengl_glfw_imgui ${IGL_SCOPE} igl_opengl_glfw imgui)
+    if(NOT TARGET imguizmo)
+      igl_download_imguizmo()
+      add_library(imguizmo ${LIBIGL_EXTERNAL}/imguizmo/ImGuizmo.cpp ${LIBIGL_EXTERNAL}/imguizmo/ImGuizmo.h)
+      target_compile_features(imguizmo PUBLIC cxx_std_11)
+      target_link_libraries(imguizmo PUBLIC imgui)
+    endif()
+    target_link_libraries(igl_opengl_glfw_imgui ${IGL_SCOPE} igl_opengl_glfw imgui imguizmo)
   endif()
 endif()
 

@@ -1,0 +1,2 @@
+0000000000000000000000000000000000000000 8f4c70ebd117a701104d79b2f8535bf0e23f9a79 Greenberg, Gal <Gal.Greenberg@3DSystems.com> 1635517585 +0300	WIP on master: 015ac35 SCAF: Expose linear system to be solved by user code (#1553)
+8f4c70ebd117a701104d79b2f8535bf0e23f9a79 2ee7e260bcb64bc1e6148ae2d0c1b8178b1a46fa Greenberg, Gal <Gal.Greenberg@3DSystems.com> 1635519138 +0300	WIP on main: fa94bb27 remove spurious asserts

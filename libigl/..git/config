@@ -5,7 +5,10 @@
 	logallrefupdates = true
 [remote "origin"]
 	url = https://github.com/libigl/libigl.git
-	fetch = +refs/heads/master:refs/remotes/origin/master
-[branch "master"]
+	fetch = +refs/heads/main:refs/remotes/origin/main
+[branch "main"]
 	remote = origin
-	merge = refs/heads/master
+	merge = refs/heads/main
+[gui]
+	wmstate = zoomed
+	geometry = 893x435+234+234 175 196
