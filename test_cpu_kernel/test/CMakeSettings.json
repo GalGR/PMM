@@ -1,0 +1,60 @@
+﻿{
+  "configurations": [
+    {
+      "name": "Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\${name}",
+      "installRoot": "${projectDir}\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "variables": [
+        {
+          "name": "Boost_DIR",
+          "value": "C:/local/boost_1_77_0",
+          "type": "PATH"
+        },
+        {
+          "name": "Boost_PROGRAM_OPTIONS_LIBRARY_DEBUG",
+          "value": "C:/local/boost_1_77_0/lib64-msvc-14.2/libboost_program_options-vc142-mt-gd-x64-1_77.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "Boost_PROGRAM_OPTIONS_LIBRARY_RELEASE",
+          "value": "C:/local/boost_1_77_0/lib64-msvc-14.2/libboost_program_options-vc142-mt-x64-1_77.lib",
+          "type": "FILEPATH"
+        }
+      ]
+    },
+    {
+      "name": "Release",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\${name}",
+      "installRoot": "${projectDir}\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "Boost_DIR",
+          "value": "C:/local/boost_1_77_0",
+          "type": "PATH"
+        },
+        {
+          "name": "Boost_PROGRAM_OPTIONS_LIBRARY_DEBUG",
+          "value": "C:/local/boost_1_77_0/lib64-msvc-14.2/libboost_program_options-vc142-mt-gd-x64-1_77.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "Boost_PROGRAM_OPTIONS_LIBRARY_RELEASE",
+          "value": "C:/local/boost_1_77_0/lib64-msvc-14.2/libboost_program_options-vc142-mt-x64-1_77.lib",
+          "type": "FILEPATH"
+        }
+      ]
+    }
+  ]
+}
