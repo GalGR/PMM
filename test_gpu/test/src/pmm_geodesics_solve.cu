@@ -1,6 +1,3 @@
-#include "pmm.cuh"
-
-#include <Eigen/Dense>
 #include <cublas_v2.h>
 #include <array>
 #include <limits>
@@ -9,6 +6,7 @@
 #include <assert.h>
 #include "utils_cuda.h"
 #include "scalar_types.h"
+#include "pmm_geodesics_constants.h"
 
 enum PMMCudaStreams {
     PMM_UPWARDS_STREAM = 1,
@@ -28,7 +26,7 @@ enum PMMCudaStreams {
 #include "pmm_geodesics_solve_transpose.inl"
 
 template <typename Scalar>
-PMM_INLINE void pmm_geodesics_solve(
+void pmm_geodesics_solve(
     size_t rows, size_t cols,
     int maxGridWidth,
     int maxThreads,
@@ -355,3 +353,24 @@ PMM_INLINE void pmm_geodesics_solve(
     // Copy D from the device
     checkCuda(cudaMemcpy2D(p_D, cols * sizeof(Scalar), d_D[0], d_D_pitch_bytes[0], cols * sizeof(Scalar), rows, cudaMemcpyDeviceToHost));
 }
+
+// Explicitly instantiate 'pmm_geodesics_solve'
+template void pmm_geodesics_solve<Scalar>(
+    size_t rows, size_t cols,
+    int maxGridWidth,
+    int maxThreads,
+    int warpSize,
+    size_t maxSharedMem,
+    cublasHandle_t cublasHandle,
+    std::array<Scalar*, 4> &d_C,
+    const std::array<size_t, 4> &d_C_pitch_bytes,
+    const std::array<size_t, 4> &d_C_pitch,
+    const cudaTextureObject_t V,
+    const std::vector<unsigned> &S,
+    Scalar *p_D,
+    std::array<Scalar*, 2> &d_D,
+    const std::array<size_t, 2> &d_D_pitch_bytes,
+    const std::array<size_t, 2> &d_D_pitch,
+    size_t N,
+    size_t numWarps,
+    size_t omega);

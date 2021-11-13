@@ -1,94 +1,16 @@
 #ifndef PMM_GEODESICS_H_
 #define PMM_GEODESICS_H_
 
-#include "pmm.cuh"
+#include "pmm.h"
 
 #include <vector>
 #include <array>
 #include <stddef.h>
 #include <Eigen/Dense>
+#include <cuda_runtime.h>
 #include <cublas_v2.h>
 
-// 56 Arrays = 4 Directions * 2 Triangles * (1 Float (a) + 2 Floats (b) + 4 Floats (c))
-// Example: Height = 1024, Width = 1024, Scalar = float
-//    234,881,024 Bytes = 56 Arrays * 1024 Height * 1024 Width * 4 Bytes (float)
-#define PMM_ARRAYS 56
-enum PMM_OFFS {
-    PMM_UPWARDS_LEFT_A = 0,
-    PMM_UPWARDS_LEFT_B_0,
-    PMM_UPWARDS_LEFT_B_1,
-    PMM_UPWARDS_LEFT_C_0,
-    PMM_UPWARDS_LEFT_C_1,
-    PMM_UPWARDS_LEFT_C_2,
-    PMM_UPWARDS_LEFT_C_3,
-    PMM_UPWARDS_RIGHT_A,
-    PMM_UPWARDS_RIGHT_B_0,
-    PMM_UPWARDS_RIGHT_B_1,
-    PMM_UPWARDS_RIGHT_C_0,
-    PMM_UPWARDS_RIGHT_C_1,
-    PMM_UPWARDS_RIGHT_C_2,
-    PMM_UPWARDS_RIGHT_C_3,
-    PMM_DOWNWARDS_LEFT_A,
-    PMM_DOWNWARDS_LEFT_B_0,
-    PMM_DOWNWARDS_LEFT_B_1,
-    PMM_DOWNWARDS_LEFT_C_0,
-    PMM_DOWNWARDS_LEFT_C_1,
-    PMM_DOWNWARDS_LEFT_C_2,
-    PMM_DOWNWARDS_LEFT_C_3,
-    PMM_DOWNWARDS_RIGHT_A,
-    PMM_DOWNWARDS_RIGHT_B_0,
-    PMM_DOWNWARDS_RIGHT_B_1,
-    PMM_DOWNWARDS_RIGHT_C_0,
-    PMM_DOWNWARDS_RIGHT_C_1,
-    PMM_DOWNWARDS_RIGHT_C_2,
-    PMM_DOWNWARDS_RIGHT_C_3,
-    PMM_RIGHTWARDS_LEFT_A,
-    PMM_RIGHTWARDS_LEFT_B_0,
-    PMM_RIGHTWARDS_LEFT_B_1,
-    PMM_RIGHTWARDS_LEFT_C_0,
-    PMM_RIGHTWARDS_LEFT_C_1,
-    PMM_RIGHTWARDS_LEFT_C_2,
-    PMM_RIGHTWARDS_LEFT_C_3,
-    PMM_RIGHTWARDS_RIGHT_A,
-    PMM_RIGHTWARDS_RIGHT_B_0,
-    PMM_RIGHTWARDS_RIGHT_B_1,
-    PMM_RIGHTWARDS_RIGHT_C_0,
-    PMM_RIGHTWARDS_RIGHT_C_1,
-    PMM_RIGHTWARDS_RIGHT_C_2,
-    PMM_RIGHTWARDS_RIGHT_C_3,
-    PMM_LEFTWARDS_LEFT_A,
-    PMM_LEFTWARDS_LEFT_B_0,
-    PMM_LEFTWARDS_LEFT_B_1,
-    PMM_LEFTWARDS_LEFT_C_0,
-    PMM_LEFTWARDS_LEFT_C_1,
-    PMM_LEFTWARDS_LEFT_C_2,
-    PMM_LEFTWARDS_LEFT_C_3,
-    PMM_LEFTWARDS_RIGHT_A,
-    PMM_LEFTWARDS_RIGHT_B_0,
-    PMM_LEFTWARDS_RIGHT_B_1,
-    PMM_LEFTWARDS_RIGHT_C_0,
-    PMM_LEFTWARDS_RIGHT_C_1,
-    PMM_LEFTWARDS_RIGHT_C_2,
-    PMM_LEFTWARDS_RIGHT_C_3,
-};
-// 14 Direction Size = 2 Triangles * (1 Float (a) + 2 Floats (b) + 4 Floats (c))
-#define PMM_DIR_SIZE 14
-// 7 Triangle Size = 1 Float (a) + 2 Floats (b) + 4 Floats (c)
-#define PMM_TRI_SIZE 7
-// No Skip (first in the triangle)
-#define PMM_A_OFF 0
-// 2 Skip = 1 Float (a) + 1 Padding
-#define PMM_B_OFF 2
-// 4 Skip = 1 Float (a) + 1 Padding + 2 Floats (b)
-#define PMM_C_OFF 4
-
-// The coefficients sizes in number of elements
-#define PMM_A_SIZE 1
-#define PMM_B_SIZE 2
-#define PMM_C_SIZE 4
-
-// Coefficients array elements pitch
-#define PMM_COEFF_PITCH 8
+#include "pmm_geodesics_constants.h"
 
 template <typename Scalar>
 struct PMMCoeffs {
@@ -105,7 +27,7 @@ struct PMMGeodesicsData {
         Eigen::Matrix<Scalar, -1, -1, Major> Y;
         Eigen::Matrix<Scalar, -1, -1, Major> Z;
 
-        PMM_INLINE void resize(size_t rows, size_t cols) {
+        inline void resize(size_t rows, size_t cols) {
             X.resize(rows, cols);
             Y.resize(rows, cols);
             Z.resize(rows, cols);
@@ -131,27 +53,27 @@ struct PMMGeodesicsData {
             // <x_1x_0x_2 acute:   e_12 > 0
             // <x_1x_0x_2 obtuse:  e_12 < 0
 
-            PMM_INLINE void resize(size_t s) {
+            inline void resize(size_t s) {
                 a.resize(s);
                 b.resize(s);
                 c.resize(s);
             }
         } left, right;
 
-        PMM_INLINE void resize(size_t lines, size_t width) {
+        inline void resize(size_t lines, size_t width) {
             left.resize(lines * (width - 1));
             right.resize(lines * (width - 1));
         }
 
-        PMM_INLINE const DataTriangle &operator [](int i) const {
+        inline const DataTriangle &operator [](int i) const {
             return (&left)[i];
         }
-        PMM_INLINE DataTriangle &operator [](int i) {
+        inline DataTriangle &operator [](int i) {
             return (&left)[i];
         }
     } upwards, downwards, rightwards, leftwards;
 
-    PMM_INLINE void resize(size_t height, size_t width) {
+    inline void resize(size_t height, size_t width) {
         this->rows = height;
         this->cols = width;
         V_row.resize(height, width);
@@ -162,16 +84,16 @@ struct PMMGeodesicsData {
         leftwards.resize(width - 1, height);
     }
 
-    PMM_INLINE const DataDirection &operator [](int i) const {
+    inline const DataDirection &operator [](int i) const {
         return (&upwards)[i];
     }
-    PMM_INLINE DataDirection &operator [](int i) {
+    inline DataDirection &operator [](int i) {
         return (&upwards)[i];
     }
 };
 
 template <typename Scalar, typename DerivedV>
-PMM_INLINE bool pmm_geodesics_precompute(
+bool pmm_geodesics_precompute(
     PMMGeodesicsData<Scalar> &data,
     size_t rows, size_t cols,
     const Eigen::MatrixBase<DerivedV> &V,
@@ -179,14 +101,14 @@ PMM_INLINE bool pmm_geodesics_precompute(
     bool ignore_non_acute_triangles = false);
 
 template <typename Scalar, typename DerivedV>
-PMM_INLINE bool pmm_geodesics_precompute(
+bool pmm_geodesics_precompute(
     size_t rows, size_t cols,
     const Eigen::MatrixBase<DerivedV> &V,
     std::array<std::vector<Scalar>, 4> &C,
     bool ignore_non_acute_triangles = false);
 
 template <typename Scalar>
-PMM_INLINE void pmm_geodesics_solve(
+void pmm_geodesics_solve(
     size_t rows, size_t cols,
     int maxGridWidth,
     int maxThreads,
@@ -207,7 +129,5 @@ PMM_INLINE void pmm_geodesics_solve(
     size_t omega);
 
 #include "pmm_geodesics_precompute.inl"
-
-#include "pmm_geodesics_solve.inl"
 
 #endif

@@ -18,7 +18,7 @@
 #include "utils_cuda.h"
 #include "scalar_types.h"
 
-#include "pmm.cuh"
+#include "pmm.h"
 
 #include "data_shared_path.h"
 
@@ -33,7 +33,6 @@
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 #include "utils_perf.h"
-#include "utils_cuda.h"
 
 #ifdef MATLAB_DEBUG
   #include "MatlabUtils/MatlabInterface.h"

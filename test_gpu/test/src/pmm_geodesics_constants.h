@@ -1,0 +1,85 @@
+#ifndef PMM_GEODESICS_CONSTANTS_H_
+#define PMM_GEODESICS_CONSTANTS_H_
+
+// 56 Arrays = 4 Directions * 2 Triangles * (1 Float (a) + 2 Floats (b) + 4 Floats (c))
+// Example: Height = 1024, Width = 1024, Scalar = float
+//    234,881,024 Bytes = 56 Arrays * 1024 Height * 1024 Width * 4 Bytes (float)
+#define PMM_ARRAYS 56
+enum PMM_OFFS {
+    PMM_UPWARDS_LEFT_A = 0,
+    PMM_UPWARDS_LEFT_B_0,
+    PMM_UPWARDS_LEFT_B_1,
+    PMM_UPWARDS_LEFT_C_0,
+    PMM_UPWARDS_LEFT_C_1,
+    PMM_UPWARDS_LEFT_C_2,
+    PMM_UPWARDS_LEFT_C_3,
+    PMM_UPWARDS_RIGHT_A,
+    PMM_UPWARDS_RIGHT_B_0,
+    PMM_UPWARDS_RIGHT_B_1,
+    PMM_UPWARDS_RIGHT_C_0,
+    PMM_UPWARDS_RIGHT_C_1,
+    PMM_UPWARDS_RIGHT_C_2,
+    PMM_UPWARDS_RIGHT_C_3,
+    PMM_DOWNWARDS_LEFT_A,
+    PMM_DOWNWARDS_LEFT_B_0,
+    PMM_DOWNWARDS_LEFT_B_1,
+    PMM_DOWNWARDS_LEFT_C_0,
+    PMM_DOWNWARDS_LEFT_C_1,
+    PMM_DOWNWARDS_LEFT_C_2,
+    PMM_DOWNWARDS_LEFT_C_3,
+    PMM_DOWNWARDS_RIGHT_A,
+    PMM_DOWNWARDS_RIGHT_B_0,
+    PMM_DOWNWARDS_RIGHT_B_1,
+    PMM_DOWNWARDS_RIGHT_C_0,
+    PMM_DOWNWARDS_RIGHT_C_1,
+    PMM_DOWNWARDS_RIGHT_C_2,
+    PMM_DOWNWARDS_RIGHT_C_3,
+    PMM_RIGHTWARDS_LEFT_A,
+    PMM_RIGHTWARDS_LEFT_B_0,
+    PMM_RIGHTWARDS_LEFT_B_1,
+    PMM_RIGHTWARDS_LEFT_C_0,
+    PMM_RIGHTWARDS_LEFT_C_1,
+    PMM_RIGHTWARDS_LEFT_C_2,
+    PMM_RIGHTWARDS_LEFT_C_3,
+    PMM_RIGHTWARDS_RIGHT_A,
+    PMM_RIGHTWARDS_RIGHT_B_0,
+    PMM_RIGHTWARDS_RIGHT_B_1,
+    PMM_RIGHTWARDS_RIGHT_C_0,
+    PMM_RIGHTWARDS_RIGHT_C_1,
+    PMM_RIGHTWARDS_RIGHT_C_2,
+    PMM_RIGHTWARDS_RIGHT_C_3,
+    PMM_LEFTWARDS_LEFT_A,
+    PMM_LEFTWARDS_LEFT_B_0,
+    PMM_LEFTWARDS_LEFT_B_1,
+    PMM_LEFTWARDS_LEFT_C_0,
+    PMM_LEFTWARDS_LEFT_C_1,
+    PMM_LEFTWARDS_LEFT_C_2,
+    PMM_LEFTWARDS_LEFT_C_3,
+    PMM_LEFTWARDS_RIGHT_A,
+    PMM_LEFTWARDS_RIGHT_B_0,
+    PMM_LEFTWARDS_RIGHT_B_1,
+    PMM_LEFTWARDS_RIGHT_C_0,
+    PMM_LEFTWARDS_RIGHT_C_1,
+    PMM_LEFTWARDS_RIGHT_C_2,
+    PMM_LEFTWARDS_RIGHT_C_3,
+};
+// 14 Direction Size = 2 Triangles * (1 Float (a) + 2 Floats (b) + 4 Floats (c))
+#define PMM_DIR_SIZE 14
+// 7 Triangle Size = 1 Float (a) + 2 Floats (b) + 4 Floats (c)
+#define PMM_TRI_SIZE 7
+// No Skip (first in the triangle)
+#define PMM_A_OFF 0
+// 2 Skip = 1 Float (a) + 1 Padding
+#define PMM_B_OFF 2
+// 4 Skip = 1 Float (a) + 1 Padding + 2 Floats (b)
+#define PMM_C_OFF 4
+
+// The coefficients sizes in number of elements
+#define PMM_A_SIZE 1
+#define PMM_B_SIZE 2
+#define PMM_C_SIZE 4
+
+// Coefficients array elements pitch
+#define PMM_COEFF_PITCH 8
+
+#endif

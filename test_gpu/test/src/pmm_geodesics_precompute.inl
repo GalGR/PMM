@@ -1,4 +1,4 @@
-#include "pmm.cuh"
+#include "pmm.h"
 
 #include <Eigen/Dense>
 
@@ -6,7 +6,7 @@
 #include <cstring>
 
 template <typename Scalar, typename DerivedV>
-PMM_INLINE bool pmm_geodesics_precompute(
+bool pmm_geodesics_precompute(
     size_t rows, size_t cols,
     const Eigen::MatrixBase<DerivedV> &V,
     std::array<std::vector<Scalar>, 4> &C,
@@ -17,7 +17,7 @@ PMM_INLINE bool pmm_geodesics_precompute(
 }
 
 template <typename Scalar, typename DerivedV>
-PMM_INLINE bool pmm_geodesics_precompute(
+bool pmm_geodesics_precompute(
     PMMGeodesicsData<Scalar> &data,
     size_t rows, size_t cols,
     const Eigen::MatrixBase<DerivedV> &V,

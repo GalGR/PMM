@@ -9,8 +9,8 @@
         #define make_Scalar2(X, Y)       make_double2(X, Y)
         #define make_Scalar3(X, Y, Z)    make_double3(X, Y, Z)
         #define make_Scalar4(X, Y, Z, W) make_double4(X, Y, Z, W)
-        #define cublasScalargeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC) cublasDgeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC)
     #endif
+    #define cublasScalargeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC) cublasDgeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC)
 #else
     typedef float Scalar;
     #ifdef __CUDACC__
@@ -20,14 +20,15 @@
         #define make_Scalar2(X, Y)       make_float2(X, Y)
         #define make_Scalar3(X, Y, Z)    make_float3(X, Y, Z)
         #define make_Scalar4(X, Y, Z, W) make_float4(X, Y, Z, W)
-        #define cublasScalargeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC) cublasSgeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC)
     #endif
+    #define cublasScalargeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC) cublasSgeam(HAND, TRANSA, TRANSB, M, N, ALPHA, A, LDA, BETA, B, LDB, C, LDC)
 #endif
 
+// Currently CUDA textures can only be of type 'float'
 typedef float TexScalar;
 #ifdef __CUDACC__
     #define make_TexScalar2(X, Y)       make_float2(X, Y)
     #define make_TexScalar3(X, Y, Z)    make_float3(X, Y, Z)
     #define make_TexScalar4(X, Y, Z, W) make_float4(X, Y, Z, W)
-    #define cudaChannelFormatKindTexScalar cudaChannelFormatKindFloat
 #endif
+#define cudaChannelFormatKindTexScalar cudaChannelFormatKindFloat
