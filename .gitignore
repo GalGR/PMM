@@ -5,7 +5,7 @@
 .vscode
 
 # Build directories
-build/*
+**/[Bb]uild/*
 **/Release
 **/Debug
 
@@ -14,6 +14,9 @@ build/*
 
 # Junk
 old
+
+# Python cache files
+**/__pycache__/*
 
 # Compiled Object files
 *.slo
