@@ -17,6 +17,11 @@
           "type": "PATH"
         },
         {
+          "name": "Boost_INCLUDE_DIR",
+          "value": "C:/local/boost_1_77_0",
+          "type": "PATH"
+        },
+        {
           "name": "Boost_PROGRAM_OPTIONS_LIBRARY_DEBUG",
           "value": "C:/local/boost_1_77_0/lib64-msvc-14.2/libboost_program_options-vc142-mt-gd-x64-1_77.lib",
           "type": "FILEPATH"
@@ -41,6 +46,11 @@
       "variables": [
         {
           "name": "Boost_DIR",
+          "value": "C:/local/boost_1_77_0",
+          "type": "PATH"
+        },
+        {
+          "name": "Boost_INCLUDE_DIR",
           "value": "C:/local/boost_1_77_0",
           "type": "PATH"
         },
