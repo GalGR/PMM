@@ -517,7 +517,7 @@ int main(int argc, char *argv[])
 
   // Load a mesh
   TIMER_START("Loading " + model_name + " triangle mesh");
-  if (!igl::read_triangle_mesh(std::string(DATA_SHARED_PATH "/") + model_name, V, F)) {
+  if (!igl::read_triangle_mesh(model_name, V, F)) {
     TIMER_ERROR("Couldn't load object");
     exit(EXIT_FAILURE);
   }
