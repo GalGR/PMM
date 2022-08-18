@@ -44,7 +44,7 @@ __global__ void solve_upwards(
                 Scalar3 x_l = make_Scalar3(v_x_l - v_x_0, v_y_l - v_y_0, v_z_l - v_z_0);
                 Scalar3 x_m = make_Scalar3(v_x_m - v_x_0, v_y_m - v_y_0, v_z_m - v_z_0);
                 Scalar3 x_r = make_Scalar3(v_x_r - v_x_0, v_y_r - v_y_0, v_z_r - v_z_0);
-                if (x > 0 && threadIdx.x > 0 && threadIdx.x < tile_width - 1) { // Left triangle -- even rows coefficients
+                if (1 <= x && x <= width - 1 && 1 <= threadIdx.x && threadIdx.x <= tile_width - 1) { // Left triangle -- even rows coefficients
                     Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[(PMM_A_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (2 * (y + i)) * C_pitch]);
                     Scalar4 c  = *reinterpret_cast<Scalar4*>(&C[(PMM_C_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (2 * (y + i)) * C_pitch]);
                     Scalar d_new = solve_kernel(x_l, x_m,
@@ -53,7 +53,7 @@ __global__ void solve_upwards(
                     );
                     d_shared[idx_d_0] = fmin(d_new, d_shared[idx_d_0]);
                 }
-                if (x < width - 1 && threadIdx.x > 0 && threadIdx.x < tile_width - 1) { // Right triangle -- odd rows coefficients
+                if (0 <= x && x <= width - 2 && 0 <= threadIdx.x && threadIdx.x <= tile_width - 2) { // Right triangle -- odd rows coefficients
                     Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + (2 * (y + i) + 1) * C_pitch]);
                     Scalar4 c  = *reinterpret_cast<Scalar4*>(&C[(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH + (2 * (y + i) + 1) * C_pitch]);
                     Scalar d_new = solve_kernel(x_m, x_r,
