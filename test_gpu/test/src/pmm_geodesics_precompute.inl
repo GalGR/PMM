@@ -16,6 +16,13 @@ bool pmm_geodesics_precompute(
     return pmm_geodesics_precompute(data,rows, cols, V, C, ignore_non_acute_triangles);
 }
 
+template <unsigned dir, typename Scalar>
+void pmm_geodesics_gpu_kernel_reformat(
+	PMMGeodesicsData<Scalar> &data,
+	size_t rows, size_t cols,
+	std::array<std::vector<Scalar>, 4> &C
+);
+
 template <typename Scalar, typename DerivedV>
 bool pmm_geodesics_precompute(
     PMMGeodesicsData<Scalar> &data,
@@ -178,15 +185,35 @@ bool pmm_geodesics_precompute(
     }
 
     // Convert PMMGeodesicsData format to linear array as used in the kernel
-    {
-        unsigned dir = 0;
-        for (; dir < 2; ++dir) { // Upwards and Downwards
-            size_t C_width = (cols - 1) * PMM_COEFF_PITCH;
-            size_t C_pitch = C_width;
-            C[dir].resize(C_pitch * (rows - 1) * 2);
-            for (unsigned tri = 0; tri < 2; ++tri) {
-                for (size_t y = 0; y < rows - 1; ++y) {
-                    for (size_t x = 0; x < cols - 1; ++x) {
+    pmm_geodesics_gpu_kernel_reformat<0>(data, rows, cols, C);
+    pmm_geodesics_gpu_kernel_reformat<1>(data, rows, cols, C);
+    pmm_geodesics_gpu_kernel_reformat<2>(data, rows, cols, C);
+    pmm_geodesics_gpu_kernel_reformat<3>(data, rows, cols, C);
+
+    return true;
+}
+
+template <unsigned dir, typename Scalar>
+void pmm_geodesics_gpu_kernel_reformat(
+    PMMGeodesicsData<Scalar> &data,
+    size_t rows, size_t cols,
+    std::array<std::vector<Scalar>, 4> &C
+) {
+    // Upwards and Downwards
+    if constexpr (dir == 0 || dir == 1) {
+        size_t C_pitch = (cols - 1) * PMM_COEFF_PITCH;
+        C[dir].resize(C_pitch * (rows - 1) * 2);
+        for (unsigned tri = 0; tri < 2; ++tri) {
+            for (size_t y = 0; y < rows - 1; ++y) {
+                for (size_t x = 0; x < cols - 1; ++x) {
+                    // Upwards
+                    if constexpr (dir == 0) {
+                        std::memcpy(&C[dir][(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + (2 * y + tri) * C_pitch], &data[dir][tri].a[x + y * (cols - 1)],        PMM_A_SIZE * sizeof(Scalar));
+                        std::memcpy(&C[dir][(PMM_B_OFF + 0) + x * PMM_COEFF_PITCH + (2 * y + tri) * C_pitch],  data[dir][tri].b[x + y * (cols - 1)].data(), PMM_B_SIZE * sizeof(Scalar));
+                        std::memcpy(&C[dir][(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH + (2 * y + tri) * C_pitch],  data[dir][tri].c[x + y * (cols - 1)].data(), PMM_C_SIZE * sizeof(Scalar));
+                    }
+                    // Downwards
+                    else /* dir == 1 */ {
                         std::memcpy(&C[dir][(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + (2 * y + tri) * C_pitch], &data[dir][tri].a[x + y * (cols - 1)],        PMM_A_SIZE * sizeof(Scalar));
                         std::memcpy(&C[dir][(PMM_B_OFF + 0) + x * PMM_COEFF_PITCH + (2 * y + tri) * C_pitch],  data[dir][tri].b[x + y * (cols - 1)].data(), PMM_B_SIZE * sizeof(Scalar));
                         std::memcpy(&C[dir][(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH + (2 * y + tri) * C_pitch],  data[dir][tri].c[x + y * (cols - 1)].data(), PMM_C_SIZE * sizeof(Scalar));
@@ -194,12 +221,22 @@ bool pmm_geodesics_precompute(
                 }
             }
         }
-        for (; dir < 4; ++dir) { // Rightwards and Leftwards
-            size_t C_pitch = (rows - 1) * PMM_COEFF_PITCH;
-            C[dir].resize(C_pitch * (cols - 1) * 2);
-            for (unsigned tri = 0; tri < 2; ++tri) {
-                for (size_t x = 0; x < cols - 1; ++x) {
-                    for (size_t y = 0; y < rows - 1; ++y) {
+    }
+    // Rightwards and Leftwards
+    else {
+        size_t C_pitch = (rows - 1) * PMM_COEFF_PITCH;
+        C[dir].resize(C_pitch * (cols - 1) * 2);
+        for (unsigned tri = 0; tri < 2; ++tri) {
+            for (size_t x = 0; x < cols - 1; ++x) {
+                for (size_t y = 0; y < rows - 1; ++y) {
+                    // Rightwards
+                    if constexpr (dir == 3) {
+                        std::memcpy(&C[dir][(PMM_A_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch], &data[dir][tri].a[y + x * (rows - 1)],        PMM_A_SIZE * sizeof(Scalar));
+                        std::memcpy(&C[dir][(PMM_B_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch],  data[dir][tri].b[y + x * (rows - 1)].data(), PMM_B_SIZE * sizeof(Scalar));
+                        std::memcpy(&C[dir][(PMM_C_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch],  data[dir][tri].c[y + x * (rows - 1)].data(), PMM_C_SIZE * sizeof(Scalar));
+                    }
+                    // Leftwards
+                    else /* dir == 1 */ {
                         std::memcpy(&C[dir][(PMM_A_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch], &data[dir][tri].a[y + x * (rows - 1)],        PMM_A_SIZE * sizeof(Scalar));
                         std::memcpy(&C[dir][(PMM_B_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch],  data[dir][tri].b[y + x * (rows - 1)].data(), PMM_B_SIZE * sizeof(Scalar));
                         std::memcpy(&C[dir][(PMM_C_OFF + 0) + y * PMM_COEFF_PITCH + (2 * x + tri) * C_pitch],  data[dir][tri].c[y + x * (rows - 1)].data(), PMM_C_SIZE * sizeof(Scalar));
@@ -208,6 +245,4 @@ bool pmm_geodesics_precompute(
             }
         }
     }
-
-    return true;
 }
