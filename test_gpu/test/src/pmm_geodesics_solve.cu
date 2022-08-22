@@ -238,7 +238,7 @@ void pmm_geodesics_solve(
 
         // Upwards and downwards kernels
         {
-            size_t tile_width = std::min(numWarps * warpSize, (size_t)maxThreads);
+            size_t tile_width = numWarps * warpSize;
             size_t tile_height = omega + 1;
             size_t tile_offset = omega; // Every tile is shifted by 'Omega' (= 'tile_height - 1') to the left
             size_t overlap = std::max(2 * tile_offset, (std::size_t)2UL);
@@ -246,8 +246,7 @@ void pmm_geodesics_solve(
             size_t tile_eff_height = tile_height - 1;
             size_t tile_pitch = tile_width;
             size_t total_mem = tile_pitch * tile_height * sizeof(Scalar);
-            size_t num_tiles = std::min(((cols + overlap) + (tile_eff_width - 1)) / tile_eff_width, (size_t)maxGridWidth);
-            num_tiles = std::min(num_tiles, maxSharedMem / total_mem);
+            size_t num_tiles = ((cols + overlap) + (tile_eff_width - 1)) / tile_eff_width;
             // Define the dimensions
             dim3 blockDim(tile_width);
             dim3 gridDim(num_tiles);
@@ -294,7 +293,7 @@ void pmm_geodesics_solve(
         }
         // Rightwards and leftwards kernels
         {
-            size_t tile_width = std::min(numWarps * warpSize, (size_t)maxThreads);
+            size_t tile_width = numWarps * warpSize;
             size_t tile_height = omega + 1;
             size_t tile_offset = omega; // Every tile is shifted by 'Omega' (= 'tile_height - 1') to the left
             size_t overlap = std::max(2 * tile_offset, (std::size_t)2UL);
@@ -302,8 +301,7 @@ void pmm_geodesics_solve(
             size_t tile_eff_height = tile_height - 1;
             size_t tile_pitch = tile_width;
             size_t total_mem = tile_pitch * tile_height * sizeof(Scalar);
-            size_t num_tiles = std::min(((rows + overlap) + (tile_eff_width - 1)) / tile_eff_width, (size_t)maxGridWidth);
-            num_tiles = std::min(num_tiles, maxSharedMem / total_mem);
+            size_t num_tiles = ((rows + overlap) + (tile_eff_width - 1)) / tile_eff_width;
             // Define the dimensions
             dim3 blockDim(tile_width);
             dim3 gridDim(num_tiles);

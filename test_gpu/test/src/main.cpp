@@ -522,7 +522,7 @@ int main(int argc, char *argv[])
 
   // Load a mesh
   TIMER_START("Loading " + model_name + " triangle mesh");
-  if (!igl::read_triangle_mesh(std::string(DATA_SHARED_PATH "/") + model_name, V, F)) {
+  if (!igl::read_triangle_mesh(model_name, V, F)) {
     TIMER_ERROR("Couldn't load object");
     exit(EXIT_FAILURE);
   }
@@ -895,6 +895,7 @@ int main(int argc, char *argv[])
       size_t height = 2 * (rows - 1);
       checkCuda(cudaMemcpy2D(d_C[i], d_C_pitch_bytes[i], p_C, C_pitch_bytes, width_bytes, height, cudaMemcpyHostToDevice));
     }
+    printf("Rows matrix pitch: %llu floating-points (%llu bytes)\n", d_C_pitch_bytes[0] / sizeof(Scalar), d_C_pitch_bytes[0]);
     for (; i < 4; ++i) {
       // Copy from C[i] to p_C
       std::memcpy(p_C, C[i].data(), (rows - 1) * PMM_COEFF_PITCH * 2 * (cols - 1) * sizeof(Scalar));
@@ -904,6 +905,7 @@ int main(int argc, char *argv[])
       size_t height = 2 * (cols - 1);
       checkCuda(cudaMemcpy2D(d_C[i], d_C_pitch_bytes[i], p_C, C_pitch_bytes, width_bytes, height, cudaMemcpyHostToDevice));
     }
+    printf("Cols matrix pitch: %llu floating-points (%llu bytes)\n", d_C_pitch_bytes[2] / sizeof(Scalar), d_C_pitch_bytes[2]);
   }
   TIMER_END();
 

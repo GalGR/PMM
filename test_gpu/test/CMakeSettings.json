@@ -2,17 +2,23 @@
   "configurations": [
     {
       "name": "Debug",
-      "generator": "Ninja",
+      //"generator": "Ninja",
+      "generator": "Visual Studio 16 2019 Win64",
       "configurationType": "Debug",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "buildRoot": "${projectDir}\\${name}",
       "installRoot": "${projectDir}\\${name}",
-      "cmakeCommandArgs": "",
+      "cmakeCommandArgs": "-DCUDART_LIBRARY=\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v11.7\\lib\\x64\\cudart.lib\" -DCUDA_CUBLAS=\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v11.7\\lib\\x64\\cublas.lib\"",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "variables": [
         {
           "name": "Boost_DIR",
+          "value": "C:/local/boost_1_77_0",
+          "type": "PATH"
+        },
+        {
+          "name": "Boost_INCLUDE_DIR",
           "value": "C:/local/boost_1_77_0",
           "type": "PATH"
         },
@@ -30,17 +36,23 @@
     },
     {
       "name": "Release",
-      "generator": "Ninja",
+      //"generator": "Ninja",
+      "generator": "Visual Studio 16 2019 Win64",
       "configurationType": "Release",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
       "buildRoot": "${projectDir}\\${name}",
       "installRoot": "${projectDir}\\${name}",
-      "cmakeCommandArgs": "",
+      "cmakeCommandArgs": "-DCUDART_LIBRARY=\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v11.7\\lib\\x64\\cudart.lib\" -DCUDA_CUBLAS=\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v11.7\\lib\\x64\\cublas.lib\"",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
         {
           "name": "Boost_DIR",
+          "value": "C:/local/boost_1_77_0",
+          "type": "PATH"
+        },
+        {
+          "name": "Boost_INCLUDE_DIR",
           "value": "C:/local/boost_1_77_0",
           "type": "PATH"
         },

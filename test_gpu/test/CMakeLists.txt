@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(test LANGUAGES CXX CUDA)
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 17)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
@@ -77,10 +77,9 @@ add_executable(${PROJECT_NAME} ${MAIN_CUDAFILES} ${MAIN_SRCFILES})
 add_executable(test-accuracy ${TEST_ACCURACY_CUDAFILES} ${TEST_ACCURACY_SRCFILES})
 set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(test-accuracy PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-if(CMAKE_BUILD_TYPE EQUAL Debug)
-    target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-G -Xcompiler -rdynamic -lineinfo>)
-    target_compile_options(test-accuracy PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-G -Xcompiler -rdynamic -lineinfo>)
-endif()
+# Works correctly for both single-config generators (Make File, Ninja) and multi-config generators (Visual Studio, Multi-config Ninja)
+target_compile_options(${PROJECT_NAME} PRIVATE $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G>)
+target_compile_options(test-accuracy PRIVATE $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G>)
 target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw igl::opengl_glfw_imgui ${Boost_LIBRARIES} ${CUDART_LIBRARY} ${CUDA_CUBLAS} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
 target_link_libraries(test-accuracy igl::core igl::opengl_glfw igl::opengl_glfw_imgui ${Boost_LIBRARIES} ${CUDART_LIBRARY} ${CUDA_CUBLAS} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
 
