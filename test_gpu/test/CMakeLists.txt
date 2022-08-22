@@ -66,9 +66,8 @@ file(GLOB SRCFILES src/*.cpp)
 file(GLOB CUDAFILES src/*.cu)
 add_executable(${PROJECT_NAME} ${CUDAFILES} ${SRCFILES})
 set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-if(CMAKE_BUILD_TYPE EQUAL Debug)
-    target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-G -Xcompiler -rdynamic -lineinfo>)
-endif()
+# Works correctly for both single-config generators (Make File, Ninja) and multi-config generators (Visual Studio, Multi-config Ninja)
+target_compile_options(${PROJECT_NAME} PRIVATE $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G>)
 target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw ${Boost_LIBRARIES} ${CUDART_LIBRARY} ${CUDA_CUBLAS} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
 
 # Ignore deprecation warnings
