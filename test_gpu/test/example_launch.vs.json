@@ -1,0 +1,71 @@
+{
+  // This is an example launch parameters to be used with Visual Studio.
+  // Move this inside the `.vs' directory and rename the file without the "example_" prefix.
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      // This configuration is for when generating build with the "Ninja" generator
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "test.exe",
+      "name": "test.exe",
+      "args": [
+        //"--model=../../../data/bump-domain.obj", // Model
+        "--model=../../../data/camelhead.off", // Model
+        "--height=2001", // Geometric image height/rows
+        "--width=2001", // Geometric image width/columns
+        //"--height=501", // Geometric image height/rows
+        //"--width=501", // Geometric image width/columns
+        "--harmonic=1", // Harmonic mapping constant (default 1)
+        "--iterations=4", // Number of PMM iterations (default 1)
+        "--source=1037218", // Source vertex index (1 dimensional; optional)
+        //"--source=67299", // Source vertex index (1 dimensional; optional)
+        "--threads=32", // Number of threads in each kernel block (multiple of 32)
+        "--omega=8" // the height of the kernel tile minus 1 (name Omega in the paper; must be at least 1)
+      ]
+    },
+    {
+      // This configuration is for when generating build "Debug" build with a "Visual Studio" generator
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "test.exe (Debug\\test.exe)",
+      "name": "test.exe (Debug\\test.exe)",
+      "args": [
+        //"--model=../../../../data/bump-domain.obj", // Model
+        "--model=../../../../data/camelhead.off", // Model
+        //"--height=2001", // Geometric image height/rows
+        //"--width=2001", // Geometric image width/columns
+        "--height=501", // Geometric image height/rows
+        "--width=501", // Geometric image width/columns
+        "--harmonic=1", // Harmonic mapping constant (default 1)
+        "--iterations=4", // Number of PMM iterations (default 1)
+        //"--source=1037218", // Source vertex index (1 dimensional; optional)
+        "--source=67299", // Source vertex index (1 dimensional; optional)
+        "--threads=32", // Number of threads in each kernel block (multiple of 32)
+        "--omega=8" // the height of the kernel tile minus 1 (name Omega in the paper; must be at least 1)
+      ]
+    },
+    {
+      // This configuration is for when generating build "Release" build with a "Visual Studio" generator
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "test.exe (Release\\test.exe)",
+      "name": "test.exe (Release\\test.exe)",
+      "args": [
+        //"--model=../../../../data/bump-domain.obj", // Model
+        "--model=../../../../data/camelhead.off", // Model
+        "--height=2001", // Geometric image height/rows
+        "--width=2001", // Geometric image width/columns
+        //"--height=501", // Geometric image height/rows
+        //"--width=501", // Geometric image width/columns
+        "--harmonic=1", // Harmonic mapping constant (default 1)
+        "--iterations=4", // Number of PMM iterations (default 1)
+        "--source=1037218", // Source vertex index (1 dimensional; optional)
+        //"--source=67299", // Source vertex index (1 dimensional; optional)
+        "--threads=32", // Number of threads in each kernel block (multiple of 32)
+        "--omega=8" // the height of the kernel tile minus 1 (name Omega in the paper; must be at least 1)
+      ]
+    }
+  ]
+}
