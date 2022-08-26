@@ -886,7 +886,7 @@ int main(int argc, char *argv[])
   viewer.callback_key_down = &key_down;
 
   // Enable wireframe
-  viewer.data().show_lines = true;
+  viewer.data().show_lines = false;
 
   // Draw checkerboard texture
   viewer.data().show_texture = true;
