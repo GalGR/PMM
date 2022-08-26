@@ -56,8 +56,8 @@ __global__ void solve_upwards(
                 if (0 <= x && x <= width - 2 && 0 <= threadIdx.x && threadIdx.x <= tile_width - 2) { // Right triangle -- odd rows coefficients
                     Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + (2 * (y + i - 1) + 1) * C_pitch]);
                     Scalar4 c  = *reinterpret_cast<Scalar4*>(&C[(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH + (2 * (y + i - 1) + 1) * C_pitch]);
-                    Scalar d_new = solve_kernel(x_r, x_m,
-                        make_Scalar2(d_shared[idx_d_r], d_shared[idx_d_m]),
+                    Scalar d_new = solve_kernel(x_m, x_r,
+                        make_Scalar2(d_shared[idx_d_m], d_shared[idx_d_r]),
                         ab.x, make_Scalar2(ab.z, ab.w), c
                     );
                     d_shared[idx_d_0] = fmin(d_new, d_shared[idx_d_0]);
