@@ -14,7 +14,6 @@
 #include "glfw3.h"
 
 #include <cuda_runtime.h>
-#include <cublas_v2.h>
 #include "utils_cuda.h"
 #include "scalar_types.h"
 
@@ -86,9 +85,6 @@ namespace po = boost::program_options;
     file.flush();
   }
 #endif
-
-// CUBLAS handle
-cublasHandle_t cublasHandle;
 
 // Device arrays
 std::array<Scalar*, 4> d_C;
@@ -174,7 +170,6 @@ void pmm_update(update_method method = UPDATE_CLEAR, unsigned idx = 0) {
     device_prop.maxThreadsPerBlock,
     device_prop.warpSize,
     device_prop.sharedMemPerBlock,
-    cublasHandle,
     d_C, d_C_pitch_bytes, d_C_pitch,
     d_tex_V,
     S,
@@ -927,16 +922,6 @@ int main(int argc, char *argv[])
   }
   perfCuda.stop();
 
-  // Create the CUBLAS handle
-  TIMER_START("Creating CUBLAS handle");
-  {
-    if (cublasCreate(&cublasHandle) != CUBLAS_STATUS_SUCCESS) {
-      TIMER_ERROR("Error: Couldn't create the CUBLAS handle");
-      exit(EXIT_FAILURE);
-    }
-  }
-  TIMER_END();
-
   // If supplied with the last optional argument of starting source,
   //  initially run the PMM algorithm on it
   if (start_with_source) {
@@ -959,7 +944,6 @@ int main(int argc, char *argv[])
       device_prop.maxThreadsPerBlock,
       device_prop.warpSize,
       device_prop.sharedMemPerBlock,
-      cublasHandle,
       d_C, d_C_pitch_bytes, d_C_pitch,
       d_tex_V, start_source, p_D,
       d_D, d_D_pitch_bytes, d_D_pitch,
@@ -1017,9 +1001,6 @@ int main(int argc, char *argv[])
       }
     }
   #endif
-
-  // Destory the CUBLAS handle
-  cublasDestroy(cublasHandle);
 
   // Free device memory
   for (unsigned i = 0; i < 4; ++i) {

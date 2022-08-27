@@ -51,7 +51,6 @@ endif()
 # CUDA
 find_package(CUDA REQUIRED)
 find_library(CUDART_LIBRARY cudart ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
-find_library(CUDA_CUBLAS cublas ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
 find_package(LIBIGL REQUIRED QUIET)
@@ -80,8 +79,8 @@ set_target_properties(test-accuracy PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 # Works correctly for both single-config generators (Make File, Ninja) and multi-config generators (Visual Studio, Multi-config Ninja)
 target_compile_options(${PROJECT_NAME} PRIVATE $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G>)
 target_compile_options(test-accuracy PRIVATE $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G>)
-target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw igl::opengl_glfw_imgui ${Boost_LIBRARIES} ${CUDART_LIBRARY} ${CUDA_CUBLAS} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
-target_link_libraries(test-accuracy igl::core igl::opengl_glfw igl::opengl_glfw_imgui ${Boost_LIBRARIES} ${CUDART_LIBRARY} ${CUDA_CUBLAS} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw igl::opengl_glfw_imgui ${Boost_LIBRARIES} ${CUDART_LIBRARY} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
+target_link_libraries(test-accuracy igl::core igl::opengl_glfw igl::opengl_glfw_imgui ${Boost_LIBRARIES} ${CUDART_LIBRARY} ${MATLAB_UTILS_LIB} ${Matlab_LIBRARIES})
 
 # Ignore deprecation warnings
 if(NOT MSVC)

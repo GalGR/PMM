@@ -8,7 +8,6 @@
 #include <stddef.h>
 #include <Eigen/Dense>
 #include <cuda_runtime.h>
-#include <cublas_v2.h>
 
 #include "pmm_geodesics_constants.h"
 
@@ -114,7 +113,6 @@ void pmm_geodesics_solve(
     int maxThreads,
     int warpSize,
     size_t maxSharedMem,
-    cublasHandle_t cublasHandle,
     std::array<Scalar*, 4> &d_C,
     const std::array<size_t, 4> &d_C_pitch_bytes,
     const std::array<size_t, 4> &d_C_pitch,

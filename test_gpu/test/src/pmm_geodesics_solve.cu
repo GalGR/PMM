@@ -1,4 +1,3 @@
-#include <cublas_v2.h>
 #include <array>
 #include <limits>
 #include <cmath>
@@ -32,7 +31,6 @@ void pmm_geodesics_solve(
     int maxThreads,
     int warpSize,
     size_t maxSharedMem,
-    cublasHandle_t cublasHandle,
     std::array<Scalar*, 4> &d_C,
     const std::array<size_t, 4> &d_C_pitch_bytes,
     const std::array<size_t, 4> &d_C_pitch,
@@ -359,7 +357,6 @@ template void pmm_geodesics_solve<Scalar>(
     int maxThreads,
     int warpSize,
     size_t maxSharedMem,
-    cublasHandle_t cublasHandle,
     std::array<Scalar*, 4> &d_C,
     const std::array<size_t, 4> &d_C_pitch_bytes,
     const std::array<size_t, 4> &d_C_pitch,
