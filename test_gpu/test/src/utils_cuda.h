@@ -174,4 +174,7 @@ public:
 
     template <typename Scalar>
     void perfCopy(Scalar *dst, Scalar *src, size_t length, cudaMemcpyKind direction, const std::string &msg);
+
+    template <typename Scalar>
+    void perfCopy2DTimes(Scalar* dst, size_t dst_pitch_bytes, Scalar* src, size_t src_pitch_bytes, size_t cols, size_t rows, const std::string& msg);
 };
