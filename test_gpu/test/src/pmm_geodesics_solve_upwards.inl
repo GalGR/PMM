@@ -45,8 +45,8 @@ __global__ void solve_upwards(
                 Scalar3 x_m = make_Scalar3(v_x_m - v_x_0, v_y_m - v_y_0, v_z_m - v_z_0);
                 Scalar3 x_r = make_Scalar3(v_x_r - v_x_0, v_y_r - v_y_0, v_z_r - v_z_0);
                 if (1 <= x && x <= width - 1 && 1 <= threadIdx.x && threadIdx.x <= tile_width - 1) { // Left triangle -- even rows coefficients
-                    Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[(PMM_A_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (2 * (y + i - 1)) * C_pitch]);
-                    Scalar4 c  = *reinterpret_cast<Scalar4*>(&C[(PMM_C_OFF + 0) + (x - 1) * PMM_COEFF_PITCH + (2 * (y + i - 1)) * C_pitch]);
+                    Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[(x - 1) * PMM_COEFF_PITCH + (4 * (y + i - 1) + 0 + 0) * C_pitch]);
+                    Scalar4 c  = *reinterpret_cast<Scalar4*>(&C[(x - 1) * PMM_COEFF_PITCH + (4 * (y + i - 1) + 0 + 1) * C_pitch]);
                     Scalar d_new = solve_kernel(x_l, x_m,
                         make_Scalar2(d_shared[idx_d_l], d_shared[idx_d_m]),
                         ab.x, make_Scalar2(ab.z, ab.w), c
@@ -54,8 +54,8 @@ __global__ void solve_upwards(
                     d_shared[idx_d_0] = fmin(d_new, d_shared[idx_d_0]);
                 }
                 if (0 <= x && x <= width - 2 && 0 <= threadIdx.x && threadIdx.x <= tile_width - 2) { // Right triangle -- odd rows coefficients
-                    Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[(PMM_A_OFF + 0) + x * PMM_COEFF_PITCH + (2 * (y + i - 1) + 1) * C_pitch]);
-                    Scalar4 c  = *reinterpret_cast<Scalar4*>(&C[(PMM_C_OFF + 0) + x * PMM_COEFF_PITCH + (2 * (y + i - 1) + 1) * C_pitch]);
+                    Scalar4 ab = *reinterpret_cast<Scalar4*>(&C[x * PMM_COEFF_PITCH + (4 * (y + i - 1) + 2 + 0) * C_pitch]);
+                    Scalar4 c  = *reinterpret_cast<Scalar4*>(&C[x * PMM_COEFF_PITCH + (4 * (y + i - 1) + 2 + 1) * C_pitch]);
                     Scalar d_new = solve_kernel(x_m, x_r,
                         make_Scalar2(d_shared[idx_d_m], d_shared[idx_d_r]),
                         ab.x, make_Scalar2(ab.z, ab.w), c

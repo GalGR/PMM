@@ -80,6 +80,6 @@ enum PMM_OFFS {
 #define PMM_C_SIZE 4
 
 // Coefficients array elements pitch
-#define PMM_COEFF_PITCH 8
+#define PMM_COEFF_PITCH 4
 
 #endif

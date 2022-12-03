@@ -858,7 +858,7 @@ int main(int argc, char *argv[])
   // Allocate pinned memory for p_C
   TIMER_START("Allocating pinned memory for C");
   {
-    checkCuda(cudaMallocHost((void**)&p_C, PMM_COEFF_PITCH * (cols - 1) * 2 * (rows - 1) * sizeof(Scalar)));
+    checkCuda(cudaMallocHost((void**)&p_C, PMM_COEFF_PITCH * (cols - 1) * 4 * (rows - 1) * sizeof(Scalar)));
   }
   TIMER_END();
 
@@ -867,11 +867,11 @@ int main(int argc, char *argv[])
   {
     unsigned i = 0;
     for (; i < 2; ++i) { // Allocate row C
-      checkCuda(cudaMallocPitch((void**)&d_C[i], &d_C_pitch_bytes[i], (cols - 1) * PMM_COEFF_PITCH * sizeof(Scalar), 2 * (rows - 1)));
+      checkCuda(cudaMallocPitch((void**)&d_C[i], &d_C_pitch_bytes[i], (cols - 1) * PMM_COEFF_PITCH * sizeof(Scalar), 4 * (rows - 1)));
       d_C_pitch[i] = d_C_pitch_bytes[i] / sizeof(Scalar);
     }
     for (; i < 4; ++i) { // Allocate col C
-      checkCuda(cudaMallocPitch((void**)&d_C[i], &d_C_pitch_bytes[i], (rows - 1) * PMM_COEFF_PITCH * sizeof(Scalar), 2 * (cols - 1)));
+      checkCuda(cudaMallocPitch((void**)&d_C[i], &d_C_pitch_bytes[i], (rows - 1) * PMM_COEFF_PITCH * sizeof(Scalar), 4 * (cols - 1)));
       d_C_pitch[i] = d_C_pitch_bytes[i] / sizeof(Scalar);
     }
   }
@@ -883,21 +883,21 @@ int main(int argc, char *argv[])
     unsigned i = 0;
     for (; i < 2; ++i) {
       // Copy from C[i] to p_C
-      std::memcpy(p_C, C[i].data(), (cols - 1) * PMM_COEFF_PITCH * 2 * (rows - 1) * sizeof(Scalar));
+      std::memcpy(p_C, C[i].data(), (cols - 1) * PMM_COEFF_PITCH * 4 * (rows - 1) * sizeof(Scalar));
       // Copy from p_C to d_C[i]
       size_t C_pitch_bytes = (cols - 1) * PMM_COEFF_PITCH * sizeof(Scalar);
       size_t width_bytes = C_pitch_bytes;
-      size_t height = 2 * (rows - 1);
+      size_t height = 4 * (rows - 1);
       checkCuda(cudaMemcpy2D(d_C[i], d_C_pitch_bytes[i], p_C, C_pitch_bytes, width_bytes, height, cudaMemcpyHostToDevice));
     }
     printf("Rows matrix pitch: %llu floating-points (%llu bytes)\n", d_C_pitch_bytes[0] / sizeof(Scalar), d_C_pitch_bytes[0]);
     for (; i < 4; ++i) {
       // Copy from C[i] to p_C
-      std::memcpy(p_C, C[i].data(), (rows - 1) * PMM_COEFF_PITCH * 2 * (cols - 1) * sizeof(Scalar));
+      std::memcpy(p_C, C[i].data(), (rows - 1) * PMM_COEFF_PITCH * 4 * (cols - 1) * sizeof(Scalar));
       // Copy from p_C to d_C[i]
       size_t C_pitch_bytes = (rows - 1) * PMM_COEFF_PITCH * sizeof(Scalar);
       size_t width_bytes = C_pitch_bytes;
-      size_t height = 2 * (cols - 1);
+      size_t height = 4 * (cols - 1);
       checkCuda(cudaMemcpy2D(d_C[i], d_C_pitch_bytes[i], p_C, C_pitch_bytes, width_bytes, height, cudaMemcpyHostToDevice));
     }
     printf("Cols matrix pitch: %llu floating-points (%llu bytes)\n", d_C_pitch_bytes[2] / sizeof(Scalar), d_C_pitch_bytes[2]);
