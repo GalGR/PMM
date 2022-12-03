@@ -217,7 +217,7 @@ void pmm_geodesics_solve(
     }
     // Set the source vertices as distance 0
     for (size_t s = 0; s < S.size(); ++s) {
-        p_D[S[s]] = 0.0;
+        p_D[std::min(S[s], static_cast<unsigned int>(rows * cols - 1))] = 0.0;
     }
 
     // Copy D to the device
